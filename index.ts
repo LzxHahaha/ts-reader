@@ -1,24 +1,26 @@
 import { EnumDeclaration, FunctionDeclaration, InterfaceDeclaration, Project, SyntaxKind, TypeAliasDeclaration, VariableDeclaration, Node } from "ts-morph";
 
-function read(): Record<string, string> {
+function read(fileName: string, targetName: string): string {
     const project = new Project();
 
-    const sourceFile = project.addSourceFileAtPath("./src/code.ts");
-    const importsRecord: Record<string, string> = {};
+    const sourceFile = project.addSourceFileAtPath(fileName);
+    let declarationStr = '';
 
     for (const importDeclaration of sourceFile.getImportDeclarations()) {
+        const importModuleName = importDeclaration.getModuleSpecifierValue();
+        let res = '';
         for (const namedImport of importDeclaration.getNamedImports()) {
             const name = namedImport.getName();
             const alias = namedImport.getAliasNode()?.getText() || name;
 
             const importSymbol = namedImport.getNameNode().getSymbol();
             const declarations = importSymbol?.getAliasedSymbol()?.getDeclarations() || importSymbol?.getDeclarations();
-            importsRecord[alias] = getDeclareString(alias, declarations) || 'any';
-
-            // TODO: 按模块生成 declare 'xxx' {...}
+            const declarationStr = getDeclareString(alias, declarations);
+            res += declarationStr ? declarationStr + '\n' : '';
         }
+        declarationStr += `declare module '${importModuleName}' {\n${res}}\n`;
     }
-    return importsRecord;
+    return declarationStr;
 }
 
 
@@ -44,17 +46,17 @@ function getDeclareString(name: string, declarations?: Node[]): string | undefin
             break;
         case SyntaxKind.EnumDeclaration:
             const enumDecl = firstDeclaration as EnumDeclaration;
-            declareStatement = `declare${enumDecl.getConstKeyword()?.getText() ? ' const' : ''} enum ${name} { ${enumDecl.getMembers().map(member => member.getName()).join(", ")} }`;
+            declareStatement = `declare${enumDecl.getConstKeyword()?.getText() ? ' const' : ''} enum ${name} {${enumDecl.getMembers().map(member => member.getName()).join(",")}}`;
             break;
         case SyntaxKind.VariableDeclaration:
             const variableDecl = firstDeclaration as VariableDeclaration;
             const variableTypeText = variableDecl.getTypeNode()?.getText() || 'any';
-            declareStatement = `declare const ${name}: ${variableTypeText};`;
+            declareStatement = `declare const ${name}:${variableTypeText};`;
             break;
         case SyntaxKind.FunctionDeclaration:
             // Fetch the full function signature with types
             const funcDecl = firstDeclaration as FunctionDeclaration;
-            declareStatement = `declare function ${name}(${(funcDecl.getStructure().parameters || []).map(p => `${p.name}: ${p.type}`).join(", ")}): ${funcDecl.getSignature().getReturnType().getText() || 'any'};`;
+            declareStatement = `declare function ${name}(${(funcDecl.getStructure().parameters || []).map(p => `${p.name}:${p.type}`).join(", ")}):${funcDecl.getSignature().getReturnType().getText() || 'any'};`;
             break;
         default:
             console.warn(`Unsupported or non-type kind '${SyntaxKind[firstDeclaration.getKind()]}' for '${name}'.`);
@@ -64,4 +66,4 @@ function getDeclareString(name: string, declarations?: Node[]): string | undefin
     return declareStatement;
 }
 
-console.log(read());
+console.log(read('./src/code.ts', ''));
