@@ -12,7 +12,8 @@ import {
     VariableDeclarationList,
     ImportDeclaration,
     ArrowFunction,
-    SourceFile
+    SourceFile,
+    EnumMember
 } from "ts-morph";
 import { FunctionData, DependData } from "./index.type";
 
@@ -59,17 +60,17 @@ export async function read(fileName: string): Promise<FunctionCode[]> {
                 }
                 dependedModules[dep.module].push(dep.text);
             } else {
-                localDeclares += `declare ${dep.text}\n`;
+                localDeclares += `${dep.text}\n`;
             }
         }
 
         let declarationStr = '';
         for (const module in dependedModules) {
-            declarationStr += `declare module '${module}' {\n${dependedModules[module].join('\n')}\n}\n`;
+            declarationStr += `${dependedModules[module].join('\n')}`;
         }
         res.push({
             name,
-            code: `${declarationStr}${localDeclares}${body}`
+            code: `${declarationStr}\n${localDeclares}${body}`.trim()
         });
     }
 
@@ -106,7 +107,7 @@ function getDeclareString(declaration?: Node, name?: string): string | undefined
     switch (kind) {
         case SyntaxKind.TypeAliasDeclaration:
             const typeAlias = declaration as TypeAliasDeclaration;
-            declareStatement = `type ${typeAlias.getName()} = ${typeAlias.getTypeNode()?.getText()};`;
+            declareStatement = `declare type ${typeAlias.getName()} = ${typeAlias.getTypeNode()?.getText()};`;
             break;
         case SyntaxKind.InterfaceDeclaration:
             const interfaceDecl = declaration as InterfaceDeclaration;
@@ -126,28 +127,27 @@ function getDeclareString(declaration?: Node, name?: string): string | undefined
                 }
                 return '';
             });
-            declareStatement = `interface ${interfaceDecl.getName()} ${extendsText}{${interfaceMembers.join('')}};`;
+            declareStatement = `declare interface ${interfaceDecl.getName()} ${extendsText}{${interfaceMembers.join('')}}`;
             break;
         case SyntaxKind.EnumDeclaration:
             const enumDecl = declaration as EnumDeclaration;
-            declareStatement = `${enumDecl.getConstKeyword()?.getText() ? ' const' : ''} enum ${enumDecl.getName()} {${enumDecl.getMembers().map(member => member.getName()).join(",")}}`;
+            declareStatement = `declare ${enumDecl.getConstKeyword()?.getText() ? ' const' : ''} enum ${enumDecl.getName()} {${getEnumMembers(enumDecl.getMembers())}}`;
             break;
         case SyntaxKind.VariableStatement:
             const variableStatement = declaration as VariableDeclarationList;
             const declarationKind = variableStatement.getDeclarationKind();
             const varDeclaration = variableStatement.getDeclarations()[0];
-            declareStatement = `${declarationKind} ${varDeclaration.getName()}:${varDeclaration.getType().getBaseTypeOfLiteralType().getText() || 'any'};`;
+            declareStatement = `declare ${declarationKind} ${varDeclaration.getName()}:${varDeclaration.getType().getBaseTypeOfLiteralType().getText() || 'any'};`;
             break;
         case SyntaxKind.VariableDeclaration:
             const variableDecl = declaration as VariableDeclaration;
             const variableTypeText = variableDecl.getTypeNode()?.getText() || 'any';
-            declareStatement = `const ${variableDecl.getName()}:${variableTypeText};`;
+            declareStatement = `declare const ${variableDecl.getName()}:${variableTypeText};`;
             break;
         case SyntaxKind.FunctionDeclaration:
             // Fetch the full function signature with types
             const funcDecl = declaration as FunctionDeclaration;
-            declareStatement = `function ${funcDecl.getName()}(${(funcDecl.getStructure().parameters || []).map(p => `${p.name}:${p.type}`).join(", ")
-                }):${funcDecl.getSignature().getReturnType().getText() || 'any'};`;
+            declareStatement = `declare function ${funcDecl.getName()}(${(funcDecl.getStructure().parameters || []).map(p => `${p.name}:${p.type}`).join(", ")}):${funcDecl.getSignature().getReturnType().getText() || 'any'};`;
             break;
         default:
             console.warn(`Unsupported or non-type kind '${kind}' for '${name || (declaration as any).getName?.() || declaration.getText()}'.`);
@@ -155,6 +155,17 @@ function getDeclareString(declaration?: Node, name?: string): string | undefined
     }
 
     return declareStatement;
+}
+
+function getEnumMembers(members: EnumMember[]): string {
+    return members.map(member => {
+        let res = member.getName();
+        const value = member.getInitializer()?.getText();
+        if (value) {
+            res += `=${value}`;
+        }
+        return res;
+    }).join(',');
 }
 
 function extractFunction(name: string, declaration: ExportedDeclarations): FunctionData | undefined {
