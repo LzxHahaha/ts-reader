@@ -9,7 +9,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "terser": "^5.31.2",
     "ts-morph": "^23.0.0"
   },
   "devDependencies": {

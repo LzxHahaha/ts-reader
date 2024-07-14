@@ -1,4 +1,4 @@
-import { moduleVar, moduleFunc, moduleEnumA, moduleEnumB, ModuleInterface } from './module';
+import { moduleVar, moduleFunc, moduleEnumA, moduleEnumB, ModuleInterface, MyClass } from './module';
 
 interface InnerInterface {
     value: string;
@@ -24,8 +24,9 @@ function otherFunc() {
     return 'other';
 }
 
-export const foo = () => {
+export const foo = (mc: MyClass) => {
+    mc.doSomething();
     return otherFunc();
 };
 
-// export type Func = typeof ExpFoo | typeof otherFunc;
+export type Func = typeof ExpFoo | typeof otherFunc;

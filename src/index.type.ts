@@ -4,8 +4,13 @@ export interface DependData {
     module: string;
 }
 
-export interface FunctionData {
+export interface ExportData {
     name: string;
     body: string;
     externalIdentifiers: string[];
+}
+
+export interface FunctionCode {
+    name: string;
+    code: string;
 }
