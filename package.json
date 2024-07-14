@@ -4,11 +4,15 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx ts-node ./test.ts"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "terser": "^5.31.2",
     "ts-morph": "^23.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10"
   }
 }

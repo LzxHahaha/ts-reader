@@ -3,6 +3,7 @@ import { moduleVar, moduleFunc, moduleEnumA, moduleEnumB, ModuleInterface } from
 interface InnerInterface {
     value: string;
     name?: string;
+    test?: (name: string) => Promise<string>;
 }
 
 const InnerConst = 'InnerConst';
@@ -23,4 +24,8 @@ function otherFunc() {
     return 'other';
 }
 
-export type Func = typeof ExpFoo | typeof otherFunc;
+export const foo = () => {
+    return otherFunc();
+};
+
+// export type Func = typeof ExpFoo | typeof otherFunc;
