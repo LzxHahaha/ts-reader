@@ -1,5 +1,6 @@
-import { ExportedDeclarations, SyntaxKind, VariableDeclarationList, FunctionDeclaration, ArrowFunction, QualifiedName, VariableDeclaration } from "ts-morph";
+import { Node, ExportedDeclarations, SyntaxKind, VariableDeclarationList, FunctionDeclaration, ArrowFunction, QualifiedName, VariableDeclaration, BindingElement, PropertyAccessExpression, PropertyAssignment, ShorthandPropertyAssignment, ParameterDeclaration } from "ts-morph";
 import { ExportData } from "./index.type";
+import { isTsSymbol } from "./utils/global";
 
 export function extractFunction(name: string, declaration: ExportedDeclarations): ExportData | undefined {
     const kind = declaration.getKind();
@@ -21,64 +22,92 @@ export function extractFunction(name: string, declaration: ExportedDeclarations)
         return {
             name,
             body: body.replaceAll(';;', ';'),
-            externalIdentifiers: getFunctionsExternalIdentifiers(name, initializer)
+            externalIdentifiers: searchExternalIdentifiers(initializer)
         }
     }
     if (kind === SyntaxKind.FunctionDeclaration) {
+        const externalIdentifiers = searchExternalIdentifiers(declaration as FunctionDeclaration);
+        console.log(name, externalIdentifiers);
         const res = {
             name: name,
             body: declaration.getText(),
-            externalIdentifiers: getFunctionsExternalIdentifiers(name, declaration as FunctionDeclaration)
+            externalIdentifiers
         };
         return res;
     }
 }
 
-function getFunctionsExternalIdentifiers(name: string, functionDeclaration: FunctionDeclaration | ArrowFunction): string[] {
-    const scopeVariableNames = new Set<string>([name]);
-    const externalIdentifiers = new Set<string>();
+function searchExternalIdentifiers(declaration: Node, res = new Set<string>(), parentScopeVar = new Set<string>()) {
+    const scopeVariableNames = new Set<string>(parentScopeVar);
+    const declarartionKind = declaration.getKind();
+    if (declarartionKind === SyntaxKind.FunctionDeclaration || declarartionKind === SyntaxKind.ClassDeclaration) {
+        const name = (declaration as any).getName();
+        scopeVariableNames.add(name);
+    }
 
-    // Add function name to scope variables
-    scopeVariableNames.add(name);
-
-    // Add parameter names to scope variables
-    functionDeclaration.getParameters().forEach(parameter => {
-        scopeVariableNames.add(parameter.getName());
-    });
-
-    // Recursively collect all identifiers and decide if they are external
-    functionDeclaration.forEachDescendant(node => {
+    declaration.forEachDescendant((node, traversal) => {
         const kind = node.getKind();
-        if (kind === SyntaxKind.Identifier) {
-            const nodeName = node.getText();
+        if (kind === SyntaxKind.QualifiedName) {
+            traversal.skip();
+            return;
+        }
 
-            // Check whether the identifier is one level under PropertyAccessExpression
-            // to exclude object property accesses (e.g., `input.a` should not return `a`)
-            const parent = node.getParent();
-            const parentKind = parent?.getKind();
-            if ((parentKind === SyntaxKind.PropertyAccessExpression
-                || parentKind === SyntaxKind.ElementAccessExpression
-                || parentKind === SyntaxKind.PropertyAssignment
-                || parentKind === SyntaxKind.ShorthandPropertyAssignment
-                || parentKind === SyntaxKind.ComputedPropertyName
-            ) && (parent as any).getNameNode() === node
-            ) {
+        let checkName = '';
+        const debugText = node.getText();
+
+        if (kind === SyntaxKind.VariableDeclaration) {
+            const nameNode = (node as VariableDeclaration).getNameNode();
+            if (nameNode.getKind() === SyntaxKind.Identifier) {
+                const nodeName = nameNode.getText();
+                scopeVariableNames.add(nodeName);
+            }
+            return;
+        }
+
+        // may be have new scope, save and keep scanning
+        if (kind === SyntaxKind.FunctionDeclaration || kind === SyntaxKind.ClassDeclaration) {
+            const nodeName = (node as any).getName() as string;
+            scopeVariableNames.add(nodeName);
+            return;
+        }
+
+        // simple binding element or parameter, save and skip current node
+        if (kind === SyntaxKind.BindingElement || kind === SyntaxKind.Parameter) {
+            const nodeName = (node as any).getName() as string;
+            scopeVariableNames.add(nodeName);
+            traversal.skip();
+            return;
+        }
+
+        // create a new scope, use recursion to scan
+        if (kind === SyntaxKind.Block) {
+            traversal.skip();
+            searchExternalIdentifiers(node, res, scopeVariableNames);
+            return;
+        }
+
+        if (kind === SyntaxKind.PropertyAccessExpression) {
+            const expression = (node as PropertyAccessExpression).getExpression();
+            const expressionKind = expression.getKind();
+            if (expressionKind === SyntaxKind.Identifier) {
+                checkName = expression.getText();
+            }
+            traversal.skip();
+        }
+
+        if (kind === SyntaxKind.Identifier) {
+            checkName = node.getText();
+            const parentKind = node.getParent()?.getKind();
+            if (parentKind === SyntaxKind.PropertyAssignment) {
                 return;
             }
-
-            // Exclude the right part of Qualified Names (e.g. `Enum.A` should not return `A`)
-            if (parentKind === SyntaxKind.QualifiedName && (parent as QualifiedName)?.getRight() === node) return;
-
-            // Collect identifier if it's not in the scope and not yet collected
-            if (!scopeVariableNames.has(nodeName) && !externalIdentifiers.has(nodeName)) {
-                externalIdentifiers.add(nodeName);
-            }
         }
 
-        if ([SyntaxKind.VariableDeclaration, SyntaxKind.FunctionDeclaration, SyntaxKind.ClassDeclaration].includes(kind)) {
-            const nodeName = (node as VariableDeclaration | FunctionDeclaration).getName() as string;
-            scopeVariableNames.add(nodeName);
+        if (!checkName || scopeVariableNames.has(checkName) || isTsSymbol(checkName)) {
+            return;
         }
+
+        res.add(checkName);
     });
-    return Array.from(externalIdentifiers);
+    return Array.from(res);
 }
