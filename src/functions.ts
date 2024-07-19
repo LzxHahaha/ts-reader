@@ -25,11 +25,15 @@ export function extractFunction(name: string, declaration: ExportedDeclarations)
             externalIdentifiers: searchExternalIdentifiers(initializer)
         }
     }
-    if (kind === SyntaxKind.FunctionDeclaration) {
+    if (kind === SyntaxKind.FunctionDeclaration || kind === SyntaxKind.ArrowFunction) {
         const externalIdentifiers = searchExternalIdentifiers(declaration as FunctionDeclaration);
+        let body = declaration.getText();
+        if (kind === SyntaxKind.ArrowFunction && name === 'default' && !body.startsWith('export default ')) {
+            body = `export default ${body}`;
+        }
         const res = {
             name: name,
-            body: declaration.getText(),
+            body,
             externalIdentifiers
         };
         return res;

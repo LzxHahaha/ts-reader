@@ -1,5 +1,8 @@
 export interface InterfaceA {
-    func: () => void;
+    func: (...args: any[]) => void;
+    foo: (a: number, c: InterfaceAny) => Promise<boolean>;
+    bar(): void;
+    bar2?(): void;
 }
 
 export interface InterfaceB {
@@ -10,6 +13,10 @@ export interface InterfaceB {
 
 export interface InterfaceAny {
     [key: string]: any;
+}
+
+export interface InterfaceT<T> {
+    v: T;
 }
 
 export type TypeA = InterfaceA | number;

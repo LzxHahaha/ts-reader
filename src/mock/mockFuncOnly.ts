@@ -12,7 +12,7 @@ export function funcOnly(input: InterfaceA): InterfaceAny {
     };
 }
 
-export function funcOnly2(input: InterfaceB): InterfaceAny {
+export const funcOnly2 = (input: InterfaceB): InterfaceAny => {
     function funcInFunc(v: number) {
         return 'funcInFunc' + v;
     }

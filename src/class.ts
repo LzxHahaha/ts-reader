@@ -10,7 +10,7 @@ export function extractClass(name: string, declaration: ExportedDeclarations): E
     const decalreString = getClassDeclaration(declaration as ClassDeclaration);
     const res = {
         name: name,
-        body: decalreString,
+        body: `declare ${decalreString}`,
         functions: [],
         externalIdentifiers: []
     };

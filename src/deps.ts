@@ -43,8 +43,7 @@ export function searchExternalIdentifiers(declaration: Node, res = new Set<strin
             return;
         }
 
-        // may be have new scope, save and keep scanning
-        if (kind === SyntaxKind.FunctionDeclaration || kind === SyntaxKind.ClassDeclaration || kind === SyntaxKind.Parameter) {
+        if (kind === SyntaxKind.FunctionDeclaration || kind === SyntaxKind.ClassDeclaration || kind === SyntaxKind.Parameter || kind === SyntaxKind.TypeParameter) {
             const nodeName = (node as any).getName() as string;
             scopeVariableNames.add(nodeName);
             return;

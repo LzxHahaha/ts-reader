@@ -1,4 +1,4 @@
-import { SyntaxKind, TypeAliasDeclaration, InterfaceDeclaration, EnumDeclaration, VariableDeclarationList, VariableDeclaration, FunctionDeclaration, Node, EnumMember, ClassDeclaration, ImportDeclaration, SourceFile, MethodDeclaration } from "ts-morph";
+import { SyntaxKind, TypeAliasDeclaration, InterfaceDeclaration, EnumDeclaration, VariableDeclarationList, VariableDeclaration, FunctionDeclaration, Node, EnumMember, ClassDeclaration, ImportDeclaration, SourceFile, MethodDeclaration, GetAccessorDeclaration, SetAccessorDeclaration } from "ts-morph";
 import { DependData } from "./index.type";
 
 export function getImportDeclarations(imports: ImportDeclaration[]): Record<string, DependData> {
@@ -75,8 +75,15 @@ export function getDeclareString(declaration?: Node, name?: string): string | un
         case SyntaxKind.MethodDeclaration:
             declareStatement = getFunctionDeclaration(declaration as FunctionDeclaration);
             break;
+        case SyntaxKind.GetAccessor:
+        case SyntaxKind.SetAccessor:
+            declareStatement = getGetterSetterDeclaration(declaration as GetAccessorDeclaration);
+            break;
         case SyntaxKind.ClassDeclaration:
             declareStatement = getClassDeclaration(declaration as ClassDeclaration);
+            break;
+        case SyntaxKind.PropertyDeclaration:
+            declareStatement = declaration.getText();
             break;
         default:
             console.warn(`Unsupported or non-type kind '${kind}' for '${name || (declaration as any).getName?.() || declaration.getText()}'.`);
@@ -84,6 +91,14 @@ export function getDeclareString(declaration?: Node, name?: string): string | un
     }
 
     return declareStatement;
+}
+
+const importReg = /import\(['"].+['"]\)\.?/g;
+function formatType(type?: string): string {
+    if (!type) {
+        return 'any';
+    }
+    return type.replaceAll(importReg, '');
 }
 
 function getTypeDeclaration(typeAlias: TypeAliasDeclaration): string {
@@ -100,13 +115,13 @@ function getInterfaceDeclaration(declaration: InterfaceDeclaration): string {
         const isOptional = (member as any).hasQuestionToken?.() ? '?' : '';
         if (memberKind === SyntaxKind.MethodSignature) {
             const methodMember = member.asKind(SyntaxKind.MethodSignature);
-            return `${methodMember?.getName()}${isOptional}:(${methodMember?.getParameters().map(p => `${p.getName()}:${p.getType().getText()}`).join(", ")})=>${methodMember?.getReturnType() || 'any'};`;
+            const name = methodMember?.getName();
+            const params = methodMember?.getParameters().map(p => {
+                return formatType(p.getText());
+            }).join(", ");
+            return `${name}${isOptional}(${params})=>${formatType(methodMember?.getReturnType().getText())};`;
         }
-        let memberType = member.getType().getBaseTypeOfLiteralType().getText() || 'any';
-        // TODO: Handle common types, other than 'any'
-        if (memberType.startsWith('import(')) {
-            memberType = 'any';
-        }
+        let memberType = formatType(member.getType().getBaseTypeOfLiteralType().getText());
         if ((member as any).getName) {
             return `${(member as any).getName()}${isOptional}:${memberType};`;
         }
@@ -134,7 +149,7 @@ function getEnumMembers(members: EnumMember[]): string {
 function getVariableStatementDeclaration(variableStatement: VariableDeclarationList): string {
     const declarationKind = variableStatement.getDeclarationKind();
     const varDeclaration = variableStatement.getDeclarations()[0];
-    return `${declarationKind} ${varDeclaration.getName()}:${varDeclaration.getType().getBaseTypeOfLiteralType().getText() || 'any'};`;
+    return `${declarationKind} ${varDeclaration.getName()}:${formatType(varDeclaration.getType().getBaseTypeOfLiteralType().getText())};`;
 }
 
 function getVariableDeclaration(variableDecl: VariableDeclaration): string {
@@ -143,7 +158,7 @@ function getVariableDeclaration(variableDecl: VariableDeclaration): string {
     const declarationKindText = declarationKind === SyntaxKind.VariableDeclarationList
         ? (parent as VariableDeclarationList).getDeclarationKind()
         : 'const';
-    const variableTypeText = variableDecl.getType().getBaseTypeOfLiteralType().getText() || 'any';
+    const variableTypeText = formatType(variableDecl.getType().getBaseTypeOfLiteralType().getText());
     return `${declarationKindText} ${variableDecl.getName()}:${variableTypeText};`;
 }
 
@@ -151,13 +166,23 @@ function getFunctionDeclaration(funcDecl: FunctionDeclaration | MethodDeclaratio
     const isMember = funcDecl.getKind() === SyntaxKind.MethodDeclaration;
     const prefix = isMember ? '' : 'function ';
     const name = funcDecl.getName();
-    const params = (funcDecl.getStructure().parameters || []).map(p => `${p.name}:${p.type}`).join(", ");
-    let returnType = funcDecl.getSignature().getReturnType().getText() || 'any';
-    if (returnType.startsWith('import(')) {
-        returnType = 'any';
-    }
+    const params = (funcDecl.getStructure().parameters || []).map(p => {
+        const dot = p.isRestParameter ? '...' : ''
+        return `${dot}${p.name}:${formatType(p.type?.toString())}`
+    }).join(", ");
+    let returnType = formatType(funcDecl.getSignature().getReturnType().getText());
     return `${prefix}${name}(${params}):${returnType};`;
 }
+
+function getGetterSetterDeclaration(funcDecl: GetAccessorDeclaration | SetAccessorDeclaration): string {
+    const modifiers = funcDecl.getModifiers().map(el => el.getText()).join(' ');
+    const isGetter = funcDecl.getKind() === SyntaxKind.GetAccessor;
+    const name = funcDecl.getName();
+    const params = (funcDecl.getStructure().parameters || []).map(p => `${p.name}:${formatType(p.type?.toString())}`).join(", ");
+    let returnType = formatType(funcDecl.getSignature().getReturnType().getText());
+    return `${modifiers ? modifiers + ' ' : ''}${isGetter ? 'get' : 'set'} ${name}(${params}):${returnType};`;
+}
+
 
 export function getClassDeclaration(classDeclaration: ClassDeclaration): string {
     const className = classDeclaration.getName();
@@ -168,14 +193,20 @@ export function getClassDeclaration(classDeclaration: ClassDeclaration): string 
     const heritageClauses = classDeclaration.getHeritageClauses().map(hc => hc.getText());
 
     let declarationString = `class ${className}`;
-    if (heritageClauses.length > 0) {
+
+    const typeParams = classDeclaration.getTypeParameters();
+    if (typeParams?.length) {
+        declarationString += `<${typeParams.map(el => el.getText()).join(',')}>`
+    }
+
+    if (heritageClauses?.length) {
         declarationString += ` ${heritageClauses.join(' ')}`
     }
     declarationString += ' {\n';
 
     const constructors = classDeclaration.getConstructors();
-    if (constructors.length > 0) {
-        const constructorParameters = constructors[0].getParameters().map(p => p.getText().replace(/(public|protected|private) /, '')).join(', ');
+    if (constructors?.length) {
+        const constructorParameters = constructors[0].getParameters().map(p => p.getText()).join(', ');
         declarationString += `constructor(${constructorParameters});\n`;
     }
 
@@ -185,12 +216,15 @@ export function getClassDeclaration(classDeclaration: ClassDeclaration): string 
         if (memberKind === SyntaxKind.Constructor || memberKind === SyntaxKind.ClassStaticBlockDeclaration) {
             continue;
         }
-        const declareStr = getDeclareString(member);
-        const modifiers = (member as any).getModifiers().map((modifier: any) => modifier.getText()).join(' ') || 'public';
-        if (declareStr) {
-            declarationString += `${modifiers} ${declareStr}\n`;
+        let propStr = getDeclareString(member);
+        const modifiers = (member as any).getModifiers().map((modifier: any) => modifier.getText()).join(' ');
+        if (propStr) {
+            if (modifiers && !propStr.includes(`${modifiers} `)) {
+                propStr = `${modifiers} ${propStr}`
+            }
+            declarationString += `${propStr}\n`;
         }
     }
 
-    return declarationString;
+    return declarationString + '}';
 }

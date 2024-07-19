@@ -2,6 +2,7 @@ import { Project, ts } from "ts-morph";
 import { ExportData, FunctionCode } from "./index.type";
 import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
+import { extractClass } from "./class";
 
 declare global {
     let tsSymbols: Set<string>;
@@ -21,7 +22,7 @@ export async function read(fileName: string): Promise<FunctionCode[]> {
     const exportFuncs: Record<string, ExportData> = {};
     exportedDeclarations.forEach((declarations, name) => {
         declarations.forEach((declaration) => {
-            const func = extractFunction(name, declaration);
+            const func = extractFunction(name, declaration) || extractClass(name, declaration);
             if (func) {
                 exportFuncs[name] = func;
             }
@@ -49,6 +50,7 @@ export async function read(fileName: string): Promise<FunctionCode[]> {
 
         let declarationStr = `${importDeclare}${localDeclares}`;
         res.push({
+            type: 'function',
             name,
             code: `${declarationStr}${body}`.trim()
         });

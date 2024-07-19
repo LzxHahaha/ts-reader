@@ -11,6 +11,7 @@ export interface ExportData {
 }
 
 export interface FunctionCode {
+    type: 'function' | 'class';
     name: string;
     code: string;
 }
