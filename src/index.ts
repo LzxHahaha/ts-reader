@@ -1,4 +1,4 @@
-import { Project, ts } from "ts-morph";
+import { Project, ProjectOptions } from "ts-morph";
 import { ExportData, FunctionCode } from "./index.type";
 import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
@@ -8,8 +8,8 @@ declare global {
     let tsSymbols: Set<string>;
 };
 
-export async function read(fileName: string): Promise<FunctionCode[]> {
-    const project = new Project();
+export async function read(fileName: string, options?: ProjectOptions): Promise<FunctionCode[]> {
+    const project = new Project(options);
 
     const sourceFile = project.addSourceFileAtPath(fileName);
 

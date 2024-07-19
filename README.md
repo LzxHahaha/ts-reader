@@ -1,6 +1,19 @@
-# TS-Reader
+# TS-Code-Extractor
 
-Extract Typescript function and the dependencies
+Extract Typescript exported code.
 
-# TODO
-- [ ] Extract class
+## Dev
+
+`npm run test`
+
+## Use
+
+```typescript
+import { read } from 'ts-code-extractor';
+
+read('file path', {
+    // ts-morph project options
+}).then(res => {
+    // ...
+});
+```
