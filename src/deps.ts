@@ -1,49 +1,92 @@
-import { ImportDeclaration, SourceFile, SyntaxKind } from "ts-morph";
-import { DependData } from "./index.type";
-import { getDeclareString } from "./declares";
+import { MethodDeclaration, Node, PropertyAccessExpression, SyntaxKind, VariableDeclaration } from "ts-morph";
+import { isTsSymbol } from "./utils/global";
 
-export function getImportDeclarations(imports: ImportDeclaration[]): Record<string, DependData> {
-    const res: Record<string, DependData> = {};
-    for (const importDeclaration of imports) {
-        const importModuleName = importDeclaration.getModuleSpecifierValue();
-        for (const namedImport of importDeclaration.getNamedImports()) {
-            const name = namedImport.getName();
-            const alias = namedImport.getAliasNode()?.getText() || name;
-
-            const importSymbol = namedImport.getNameNode().getSymbol();
-            const declarations = importSymbol?.getAliasedSymbol()?.getDeclarations() || importSymbol?.getDeclarations();
-            res[alias] = {
-                text: getDeclareString(declarations?.[0], alias) || `declare const ${alias}: any;`,
-                module: importModuleName
-            };
-        }
+export function searchExternalIdentifiers(declaration: Node, res = new Set<string>(), parentScopeVar = new Set<string>()) {
+    const scopeVariableNames = new Set<string>(parentScopeVar);
+    const declarartionKind = declaration.getKind();
+    if (declarartionKind === SyntaxKind.FunctionDeclaration) {
+        const name = (declaration as any).getName();
+        scopeVariableNames.add(name);
     }
-    return res;
-}
-
-export function getLocalDeclarations(sourceFile: SourceFile): Record<string, DependData> {
-    const res: Record<string, DependData> = {};
-    for (const statement of sourceFile.getStatements()) {
-        const kind = statement.getKind();
-        const isDeclartoin = kind === SyntaxKind.VariableStatement
-            || kind === SyntaxKind.FunctionDeclaration
-            || kind === SyntaxKind.TypeAliasDeclaration
-            || kind === SyntaxKind.InterfaceDeclaration
-            || kind === SyntaxKind.EnumDeclaration
-            || kind === SyntaxKind.ClassDeclaration;
-        if (!isDeclartoin || statement.asKind(kind)?.isExported()) {
-            continue;
-        }
-        const declareStr = getDeclareString(statement);
-        if (!declareStr) {
-            continue;
-        }
-
-        let name = (statement as any).getName?.() || (statement.asKind(SyntaxKind.VariableStatement))?.getDeclarations()?.[0]?.getName();
-        res[name] = {
-            text: declareStr,
-            module: ''
-        }
+    if (declarartionKind === SyntaxKind.ClassDeclaration) {
+        const name = (declaration as any).getName();
+        scopeVariableNames.add(name);
+        declaration.asKind(SyntaxKind.ClassDeclaration)!.getMembers().forEach(member => {
+            const memberKind = member.getKind();
+            if (memberKind === SyntaxKind.MethodDeclaration
+                || memberKind === SyntaxKind.PropertyDeclaration
+                || memberKind === SyntaxKind.GetAccessor
+                || memberKind === SyntaxKind.SetAccessor
+            ) {
+                const name = (member as MethodDeclaration).getName();
+                scopeVariableNames.add(name);
+            }
+        });
     }
-    return res;
+
+    declaration.forEachDescendant((node, traversal) => {
+        const kind = node.getKind();
+        if (kind === SyntaxKind.QualifiedName) {
+            traversal.skip();
+            return;
+        }
+
+        let checkName = '';
+        const debugText = node.getText();
+
+        if (kind === SyntaxKind.VariableDeclaration) {
+            const nameNode = (node as VariableDeclaration).getNameNode();
+            if (nameNode.getKind() === SyntaxKind.Identifier) {
+                const nodeName = nameNode.getText();
+                scopeVariableNames.add(nodeName);
+            }
+            return;
+        }
+
+        // may be have new scope, save and keep scanning
+        if (kind === SyntaxKind.FunctionDeclaration || kind === SyntaxKind.ClassDeclaration || kind === SyntaxKind.Parameter) {
+            const nodeName = (node as any).getName() as string;
+            scopeVariableNames.add(nodeName);
+            return;
+        }
+
+        // simple binding element or parameter, save and skip current node
+        if (kind === SyntaxKind.BindingElement) {
+            const nodeName = (node as any).getName() as string;
+            scopeVariableNames.add(nodeName);
+            traversal.skip();
+            return;
+        }
+
+        // create a new scope, use recursion to scan
+        if (kind === SyntaxKind.Block) {
+            traversal.skip();
+            searchExternalIdentifiers(node, res, scopeVariableNames);
+            return;
+        }
+
+        if (kind === SyntaxKind.PropertyAccessExpression) {
+            const expression = (node as PropertyAccessExpression).getExpression();
+            const expressionKind = expression.getKind();
+            if (expressionKind === SyntaxKind.Identifier) {
+                checkName = expression.getText();
+            }
+            traversal.skip();
+        }
+
+        if (kind === SyntaxKind.Identifier) {
+            checkName = node.getText();
+            const parentKind = node.getParent()?.getKind();
+            if (parentKind === SyntaxKind.PropertyAssignment) {
+                return;
+            }
+        }
+
+        if (!checkName || scopeVariableNames.has(checkName) || isTsSymbol(checkName)) {
+            return;
+        }
+
+        res.add(checkName);
+    });
+    return Array.from(res);
 }

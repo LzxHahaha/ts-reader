@@ -1,6 +1,6 @@
 import { Project, ts } from "ts-morph";
 import { ExportData, FunctionCode } from "./index.type";
-import { getImportDeclarations, getLocalDeclarations } from "./deps";
+import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
 
 declare global {
@@ -31,34 +31,26 @@ export async function read(fileName: string): Promise<FunctionCode[]> {
     const res: FunctionCode[] = [];
     for (const funcName in exportFuncs) {
         const { name, body, externalIdentifiers } = exportFuncs[funcName];
-        const dependedModules: Record<string, string[]> = {};
         let importDeclare = '';
         let localDeclares = '';
         for (const externalIdentifier of externalIdentifiers) {
             const dep = importDeclarations[externalIdentifier] || localDeclarations[externalIdentifier];
             if (!dep) {
-                // console.warn(`Cannot find declaration for '${externalIdentifier}' in '${name}'`);
+                console.warn(`Cannot find declaration for '${externalIdentifier}' in '${name}'`);
                 importDeclare += `declare const ${externalIdentifier}: any;\n`;
                 continue;
             }
             if (dep.module) {
-                // if (!dependedModules[dep.module]) {
-                //     dependedModules[dep.module] = [];
-                // }
-                // dependedModules[dep.module].push(dep.text);
                 importDeclare += dep.text + '\n';
             } else {
                 localDeclares += `${dep.text}\n`;
             }
         }
 
-        let declarationStr = '';
-        for (const module in dependedModules) {
-            declarationStr += `${dependedModules[module].join('\n')}`;
-        }
+        let declarationStr = `${importDeclare}${localDeclares}`;
         res.push({
             name,
-            code: `${declarationStr}\n${localDeclares}${body}`.trim()
+            code: `${declarationStr}${body}`.trim()
         });
     }
 

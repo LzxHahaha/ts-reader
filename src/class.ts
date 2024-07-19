@@ -1,15 +1,17 @@
-import { ExportedDeclarations, SyntaxKind } from "ts-morph";
+import { ClassDeclaration, ExportedDeclarations, SyntaxKind } from "ts-morph";
 import { ExportData } from "./index.type";
+import { getClassDeclaration } from "./declares";
 
-export function extractFunction(name: string, declaration: ExportedDeclarations): ExportData | undefined {
+export function extractClass(name: string, declaration: ExportedDeclarations): ExportData | undefined {
     const kind = declaration.getKind();
     if (kind !== SyntaxKind.ClassDeclaration) {
         return;
     }
-    // TODO
+    const decalreString = getClassDeclaration(declaration as ClassDeclaration);
     const res = {
         name: name,
-        body: declaration.getText(),
+        body: decalreString,
+        functions: [],
         externalIdentifiers: []
     };
     return res;

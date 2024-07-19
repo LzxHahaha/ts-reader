@@ -9,6 +9,7 @@ let tsSymbols = new Set([
     "Float32Array",
     "Float64Array",
     "Function",
+    "Infinity",
     "Int8Array",
     "Int16Array",
     "Int32Array",
@@ -36,6 +37,7 @@ let tsSymbols = new Set([
     "isNaN",
     "parseFloat",
     "parseInt",
+    "console",
     "decodeURI",
     "decodeURIComponent",
     "encodeURI",
@@ -47,7 +49,9 @@ let tsSymbols = new Set([
     "Reflect",
     "Proxy",
     "Intl",
-    "WebAssembly"
+    "WebAssembly",
+    "super",
+    "this"
 ]);
 
 export function isTsSymbol(symbol: string): boolean {

@@ -1,4 +1,51 @@
-import { SyntaxKind, TypeAliasDeclaration, InterfaceDeclaration, EnumDeclaration, VariableDeclarationList, VariableDeclaration, FunctionDeclaration, Node, EnumMember, ClassDeclaration } from "ts-morph";
+import { SyntaxKind, TypeAliasDeclaration, InterfaceDeclaration, EnumDeclaration, VariableDeclarationList, VariableDeclaration, FunctionDeclaration, Node, EnumMember, ClassDeclaration, ImportDeclaration, SourceFile, MethodDeclaration } from "ts-morph";
+import { DependData } from "./index.type";
+
+export function getImportDeclarations(imports: ImportDeclaration[]): Record<string, DependData> {
+    const res: Record<string, DependData> = {};
+    for (const importDeclaration of imports) {
+        const importModuleName = importDeclaration.getModuleSpecifierValue();
+        for (const namedImport of importDeclaration.getNamedImports()) {
+            const name = namedImport.getName();
+            const alias = namedImport.getAliasNode()?.getText() || name;
+
+            const importSymbol = namedImport.getNameNode().getSymbol();
+            const declarations = importSymbol?.getAliasedSymbol()?.getDeclarations() || importSymbol?.getDeclarations();
+            res[alias] = {
+                text: `declare ${getDeclareString(declarations?.[0], alias) || `const ${alias}: any;`}`,
+                module: importModuleName
+            };
+        }
+    }
+    return res;
+}
+
+export function getLocalDeclarations(sourceFile: SourceFile): Record<string, DependData> {
+    const res: Record<string, DependData> = {};
+    for (const statement of sourceFile.getStatements()) {
+        const kind = statement.getKind();
+        const isDeclartoin = kind === SyntaxKind.VariableStatement
+            || kind === SyntaxKind.FunctionDeclaration
+            || kind === SyntaxKind.TypeAliasDeclaration
+            || kind === SyntaxKind.InterfaceDeclaration
+            || kind === SyntaxKind.EnumDeclaration
+            || kind === SyntaxKind.ClassDeclaration;
+        if (!isDeclartoin || statement.asKind(kind)?.isExported()) {
+            continue;
+        }
+        const name = (statement as any).getName?.() || (statement.asKind(SyntaxKind.VariableStatement))?.getDeclarations()?.[0]?.getName();
+        const declareStr = getDeclareString(statement);
+        if (!name || !declareStr) {
+            continue;
+        }
+
+        res[name] = {
+            text: `declare ${declareStr}`,
+            module: ''
+        }
+    }
+    return res;
+}
 
 export function getDeclareString(declaration?: Node, name?: string): string | undefined {
     if (!declaration) {
@@ -25,6 +72,7 @@ export function getDeclareString(declaration?: Node, name?: string): string | un
             declareStatement = getVariableDeclaration(declaration as VariableDeclaration)
             break;
         case SyntaxKind.FunctionDeclaration:
+        case SyntaxKind.MethodDeclaration:
             declareStatement = getFunctionDeclaration(declaration as FunctionDeclaration);
             break;
         case SyntaxKind.ClassDeclaration:
@@ -39,7 +87,7 @@ export function getDeclareString(declaration?: Node, name?: string): string | un
 }
 
 function getTypeDeclaration(typeAlias: TypeAliasDeclaration): string {
-    return `declare type ${typeAlias.getName()} = ${typeAlias.getTypeNode()?.getText()};`;
+    return `type ${typeAlias.getName()} = ${typeAlias.getTypeNode()?.getText()};`;
 }
 
 function getInterfaceDeclaration(declaration: InterfaceDeclaration): string {
@@ -54,18 +102,22 @@ function getInterfaceDeclaration(declaration: InterfaceDeclaration): string {
             const methodMember = member.asKind(SyntaxKind.MethodSignature);
             return `${methodMember?.getName()}${isOptional}:(${methodMember?.getParameters().map(p => `${p.getName()}:${p.getType().getText()}`).join(", ")})=>${methodMember?.getReturnType() || 'any'};`;
         }
-        const memberType = member.getType().getBaseTypeOfLiteralType().getText() || 'any';
+        let memberType = member.getType().getBaseTypeOfLiteralType().getText() || 'any';
+        // TODO: Handle common types, other than 'any'
+        if (memberType.startsWith('import(')) {
+            memberType = 'any';
+        }
         if ((member as any).getName) {
             return `${(member as any).getName()}${isOptional}:${memberType};`;
         }
         return '';
     });
-    return `declare interface ${interfaceDecl.getName()} ${extendsText}{${interfaceMembers.join('')}}`;
+    return `interface ${interfaceDecl.getName()} ${extendsText}{${interfaceMembers.join('')}}`;
 }
 
 function getMemeberDeclaration(declaration: EnumDeclaration): string {
     const enumDecl = declaration as EnumDeclaration;
-    return `declare ${enumDecl.getConstKeyword()?.getText() ? ' const' : ''} enum ${enumDecl.getName()} {${getEnumMembers(enumDecl.getMembers())}}`;
+    return `${enumDecl.getConstKeyword()?.getText() ? ' const' : ''} enum ${enumDecl.getName()} {${getEnumMembers(enumDecl.getMembers())}}`;
 }
 
 function getEnumMembers(members: EnumMember[]): string {
@@ -82,7 +134,7 @@ function getEnumMembers(members: EnumMember[]): string {
 function getVariableStatementDeclaration(variableStatement: VariableDeclarationList): string {
     const declarationKind = variableStatement.getDeclarationKind();
     const varDeclaration = variableStatement.getDeclarations()[0];
-    return `declare ${declarationKind} ${varDeclaration.getName()}:${varDeclaration.getType().getBaseTypeOfLiteralType().getText() || 'any'};`;
+    return `${declarationKind} ${varDeclaration.getName()}:${varDeclaration.getType().getBaseTypeOfLiteralType().getText() || 'any'};`;
 }
 
 function getVariableDeclaration(variableDecl: VariableDeclaration): string {
@@ -92,53 +144,53 @@ function getVariableDeclaration(variableDecl: VariableDeclaration): string {
         ? (parent as VariableDeclarationList).getDeclarationKind()
         : 'const';
     const variableTypeText = variableDecl.getType().getBaseTypeOfLiteralType().getText() || 'any';
-    return `declare ${declarationKindText} ${variableDecl.getName()}:${variableTypeText};`;
+    return `${declarationKindText} ${variableDecl.getName()}:${variableTypeText};`;
 }
 
-function getFunctionDeclaration(funcDecl: FunctionDeclaration): string {
-    return `declare function ${funcDecl.getName()}(${(funcDecl.getStructure().parameters || []).map(p => `${p.name}:${p.type}`).join(", ")}):${funcDecl.getSignature().getReturnType().getText() || 'any'};`;
+function getFunctionDeclaration(funcDecl: FunctionDeclaration | MethodDeclaration): string {
+    const isMember = funcDecl.getKind() === SyntaxKind.MethodDeclaration;
+    const prefix = isMember ? '' : 'function ';
+    const name = funcDecl.getName();
+    const params = (funcDecl.getStructure().parameters || []).map(p => `${p.name}:${p.type}`).join(", ");
+    let returnType = funcDecl.getSignature().getReturnType().getText() || 'any';
+    if (returnType.startsWith('import(')) {
+        returnType = 'any';
+    }
+    return `${prefix}${name}(${params}):${returnType};`;
 }
 
-function getClassDeclaration(classDeclaration: ClassDeclaration): string {
+export function getClassDeclaration(classDeclaration: ClassDeclaration): string {
     const className = classDeclaration.getName();
     if (!className) {
         return '';
     }
-    return `declare class ${className}{[key:string]:any}`;
 
-    // const heritageClauses = classDeclaration.getHeritageClauses().map(hc => hc.getText());
+    const heritageClauses = classDeclaration.getHeritageClauses().map(hc => hc.getText());
 
-    // let declarationString = `declare class ${className}`;
-    // if (heritageClauses.length > 0) {
-    //     declarationString += ` ${heritageClauses.join(' ')}`
-    // }
-    // declarationString += ' {\n';
+    let declarationString = `class ${className}`;
+    if (heritageClauses.length > 0) {
+        declarationString += ` ${heritageClauses.join(' ')}`
+    }
+    declarationString += ' {\n';
 
-    // const constructors = classDeclaration.getConstructors();
-    // if (constructors.length > 0) {
-    //     const constructorParameters = constructors[0].getParameters().map(p => p.getText()).join(', ');
-    //     declarationString += `constructor(${constructorParameters});\n`;
-    // }
+    const constructors = classDeclaration.getConstructors();
+    if (constructors.length > 0) {
+        const constructorParameters = constructors[0].getParameters().map(p => p.getText().replace(/(public|protected|private) /, '')).join(', ');
+        declarationString += `constructor(${constructorParameters});\n`;
+    }
 
-    // classDeclaration.getMethods().forEach(method => {
-    //     if (method.hasModifier('private') || method.hasModifier('protected')) {
-    //         return;
-    //     }
-    //     declarationString += `${method.getText()}\n`;
-    // });
+    const members = classDeclaration.getMembers();
+    for (const member of members) {
+        const memberKind = member.getKind();
+        if (memberKind === SyntaxKind.Constructor || memberKind === SyntaxKind.ClassStaticBlockDeclaration) {
+            continue;
+        }
+        const declareStr = getDeclareString(member);
+        const modifiers = (member as any).getModifiers().map((modifier: any) => modifier.getText()).join(' ') || 'public';
+        if (declareStr) {
+            declarationString += `${modifiers} ${declareStr}\n`;
+        }
+    }
 
-    // classDeclaration.getProperties().forEach(property => {
-    //     if (property.hasModifier('private') || property.hasModifier('protected')) {
-    //         return;
-    //     }
-    //     declarationString += `${property.getText()};\n`;
-    // });
-
-
-    // classDeclaration.getStaticProperties().forEach(staticProperty => {
-    //     declarationString += `static ${staticProperty.getText()};\n`;
-    // });
-
-    // declarationString += '}';
-    // return declarationString;
+    return declarationString;
 }

@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/index.ts",
   "scripts": {
-    "test": "npx ts-node ./test.ts"
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",
