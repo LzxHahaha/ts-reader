@@ -104,13 +104,13 @@ static Val = 123;
 static Foo():number;
 get FFF():number;
 set FFF(v:any):void;
-public foo(v:InterfaceA):void;
-private bar(input:InterfaceAny):void;
+public foooo(v:InterfaceA):void;
+private barrrr(input:InterfaceAny):void;
 protected protectedBar():void;
 }`);
 
         expect(res[1].name).toBe('B');
-        expect(res[1].code).toBe(`declare class B implements InterfaceA {
+        expect(res[1].code).toBe(`declare class B extends A implements InterfaceA, InterfaceAny {
 readonly v = 123;
 func(...args:any[]):void;
 foo = async (a: number, c: InterfaceAny): Promise<boolean> => {

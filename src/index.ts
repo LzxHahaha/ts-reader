@@ -1,5 +1,5 @@
 import { Project, ProjectOptions } from "ts-morph";
-import { ExportData, FunctionCode } from "./index.type";
+import { ExportData, ExportCode } from "./index.type";
 import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
 import { extractClass } from "./class";
@@ -8,7 +8,7 @@ declare global {
     let tsSymbols: Set<string>;
 };
 
-export async function read(fileName: string, options?: ProjectOptions): Promise<FunctionCode[]> {
+export async function read(fileName: string, options?: ProjectOptions): Promise<ExportCode[]> {
     const project = new Project(options);
 
     const sourceFile = project.addSourceFileAtPath(fileName);
@@ -29,7 +29,7 @@ export async function read(fileName: string, options?: ProjectOptions): Promise<
         });
     });
 
-    const res: FunctionCode[] = [];
+    const res: ExportCode[] = [];
     for (const funcName in exportFuncs) {
         const { name, body, externalIdentifiers } = exportFuncs[funcName];
         let importDeclare = '';

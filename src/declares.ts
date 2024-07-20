@@ -1,5 +1,5 @@
 import { SyntaxKind, TypeAliasDeclaration, InterfaceDeclaration, EnumDeclaration, VariableDeclarationList, VariableDeclaration, FunctionDeclaration, Node, EnumMember, ClassDeclaration, ImportDeclaration, SourceFile, MethodDeclaration, GetAccessorDeclaration, SetAccessorDeclaration } from "ts-morph";
-import { DependData } from "./index.type";
+import { ClassStructure, DependData } from "./index.type";
 
 export function getImportDeclarations(imports: ImportDeclaration[]): Record<string, DependData> {
     const res: Record<string, DependData> = {};
@@ -183,31 +183,47 @@ function getGetterSetterDeclaration(funcDecl: GetAccessorDeclaration | SetAccess
     return `${modifiers ? modifiers + ' ' : ''}${isGetter ? 'get' : 'set'} ${name}(${params}):${returnType};`;
 }
 
-
 export function getClassDeclaration(classDeclaration: ClassDeclaration): string {
-    const className = classDeclaration.getName();
-    if (!className) {
+    const structure = getClassStructure(classDeclaration);
+    if (!structure) {
         return '';
     }
+    const { name, type, ext, impl, body } = structure;
+    return `class ${name}${type}${ext}${impl} {\n${body.map(([, declareStr]) => `${declareStr}`).join('')}}`;
+}
 
-    const heritageClauses = classDeclaration.getHeritageClauses().map(hc => hc.getText());
+export function getClassStructure(classDeclaration: ClassDeclaration): ClassStructure | undefined {
+    const className = classDeclaration.getName();
+    if (!className) {
+        return;
+    }
 
-    let declarationString = `class ${className}`;
 
     const typeParams = classDeclaration.getTypeParameters();
+    let typeString = '';
     if (typeParams?.length) {
-        declarationString += `<${typeParams.map(el => el.getText()).join(',')}>`
+        typeString += `<${typeParams.map(el => el.getText()).join(',')}>`
     }
 
-    if (heritageClauses?.length) {
-        declarationString += ` ${heritageClauses.join(' ')}`
-    }
-    declarationString += ' {\n';
+    const exts: string[] = [];
+    const impls: string[] = [];
+    classDeclaration.getHeritageClauses().forEach(el => {
+        const debugText = el.getText();
+        const types = el.getTypeNodes().map(n => formatType(n.getText()));
+        const kind = el.getToken();
+        if (kind === SyntaxKind.ExtendsKeyword) {
+            exts.push(...types);
+        } else {
+            impls.push(...types);
+        }
+    });
+
+    const body: [name: string, declareStr: string][] = [];
 
     const constructors = classDeclaration.getConstructors();
     if (constructors?.length) {
         const constructorParameters = constructors[0].getParameters().map(p => p.getText()).join(', ');
-        declarationString += `constructor(${constructorParameters});\n`;
+        body.push(['constructor', `constructor(${constructorParameters});\n`]);
     }
 
     const members = classDeclaration.getMembers();
@@ -222,9 +238,15 @@ export function getClassDeclaration(classDeclaration: ClassDeclaration): string 
             if (modifiers && !propStr.includes(`${modifiers} `)) {
                 propStr = `${modifiers} ${propStr}`
             }
-            declarationString += `${propStr}\n`;
+            body.push([(member as any).getName(), `${propStr}\n`]);
         }
     }
 
-    return declarationString + '}';
+    return {
+        name: className,
+        type: typeString,
+        ext: exts.length ? ` extends ${exts.join(', ')}` : '',
+        impl: impls.length ? ` implements ${impls.join(', ')}` : '',
+        body
+    }
 }

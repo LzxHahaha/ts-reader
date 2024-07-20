@@ -10,8 +10,16 @@ export interface ExportData {
     externalIdentifiers: string[];
 }
 
-export interface FunctionCode {
+export interface ExportCode {
     type: 'function' | 'class';
     name: string;
     code: string;
+}
+
+export interface ClassStructure {
+    name: string;
+    type: string;
+    ext: string;
+    impl: string;
+    body: [name: string, declareStr: string][];
 }

@@ -25,12 +25,12 @@ export class A {
         this.f = v;
     }
 
-    public foo(v: InterfaceA) {
-        this.bar(v);
+    public foooo(v: InterfaceA) {
+        this.barrrr(v);
         return v.func(this.a);
     }
 
-    private bar(input: InterfaceAny) {
+    private barrrr(input: InterfaceAny) {
         console.log(input);
     }
 
@@ -39,7 +39,7 @@ export class A {
     }
 }
 
-export class B implements InterfaceA {
+export class B extends A implements InterfaceA, InterfaceAny {
     readonly v = 123;
 
     func(...args: any[]) {
@@ -50,5 +50,7 @@ export class B implements InterfaceA {
         return a > c.a;
     }
 
-    bar() { }
+    bar() {
+        super.foooo(this);
+    }
 }
