@@ -11,7 +11,8 @@ declare global {
 export async function read(fileName: string, options?: ProjectOptions): Promise<ExportCode[]> {
     const project = new Project(options);
 
-    const sourceFile = project.addSourceFileAtPath(fileName);
+    const formatFileName = formatPath(fileName);
+    const sourceFile = project.addSourceFileAtPath(formatFileName);
 
     const exportedDeclarations = sourceFile.getExportedDeclarations();
     const imports = sourceFile.getImportDeclarations();
@@ -22,6 +23,10 @@ export async function read(fileName: string, options?: ProjectOptions): Promise<
     const exportData: Record<string, ExportData> = {};
     exportedDeclarations.forEach((declarations, name) => {
         declarations.forEach((declaration) => {
+            const sourcePath = formatPath(declaration.getSourceFile().getFilePath());
+            if (sourcePath !== formatFileName) {
+                return;
+            }
             const data = extractFunction(name, declaration) || extractClass(name, declaration);
             if (data) {
                 exportData[name] = data;
@@ -92,4 +97,9 @@ export function getCode(data: ExportCode, options: MergeCodeOptions = {}): strin
     const codeStatements = `${beforeCode}${code}${afterCode}`;
 
     return `${importStatements}${localStatements}${codeStatements}`;
+}
+
+
+function formatPath(path: string) {
+    return path.replace(/\\/g, '/');
 }

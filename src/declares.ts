@@ -30,7 +30,7 @@ export function getLocalDeclarations(sourceFile: SourceFile): Record<string, Dep
             || kind === SyntaxKind.InterfaceDeclaration
             || kind === SyntaxKind.EnumDeclaration
             || kind === SyntaxKind.ClassDeclaration;
-        if (!isDeclartoin || statement.asKind(kind)?.isExported()) {
+        if (!isDeclartoin) {
             continue;
         }
         const name = (statement as any).getName?.() || (statement.asKind(SyntaxKind.VariableStatement))?.getDeclarations()?.[0]?.getName();
