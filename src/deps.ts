@@ -64,13 +64,12 @@ export function searchExternalIdentifiers(declaration: Node, res = new Set<strin
             return;
         }
 
-        if (kind === SyntaxKind.PropertyAccessExpression) {
-            const expression = (node as PropertyAccessExpression).getExpression();
-            const expressionKind = expression.getKind();
-            if (expressionKind === SyntaxKind.Identifier) {
-                checkName = expression.getText();
+        if (kind === SyntaxKind.PropertyAccessExpression || kind === SyntaxKind.ElementAccessExpression) {
+            const expression = (node as PropertyAccessExpression).getDescendantsOfKind(SyntaxKind.Identifier);
+            if (expression.length > 0) {
+                checkName = expression[0].getText();
+                traversal.skip();
             }
-            traversal.skip();
         }
 
         if (kind === SyntaxKind.Identifier) {

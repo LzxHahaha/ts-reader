@@ -12,7 +12,7 @@ export function getImportDeclarations(imports: ImportDeclaration[]): Record<stri
             const importSymbol = namedImport.getNameNode().getSymbol();
             const declarations = importSymbol?.getAliasedSymbol()?.getDeclarations() || importSymbol?.getDeclarations();
             res[alias] = {
-                text: `declare ${getDeclareString(declarations?.[0], alias) || `const ${alias}: any;`}`,
+                text: getDeclareString(declarations?.[0], alias) || `const ${alias}: any;`,
                 module: importModuleName
             };
         }
@@ -40,7 +40,7 @@ export function getLocalDeclarations(sourceFile: SourceFile): Record<string, Dep
         }
 
         res[name] = {
-            text: `declare ${declareStr}`,
+            text: declareStr,
             module: ''
         }
     }

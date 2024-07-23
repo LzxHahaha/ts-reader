@@ -1,5 +1,5 @@
 import { ExportedDeclarations, SyntaxKind, VariableDeclarationList, FunctionDeclaration } from "ts-morph";
-import { ExportData } from "./index.type";
+import { ExportData, ExportType } from "./index.type";
 import { searchExternalIdentifiers } from "./deps";
 
 export function extractFunction(name: string, declaration: ExportedDeclarations): ExportData | undefined {
@@ -20,6 +20,7 @@ export function extractFunction(name: string, declaration: ExportedDeclarations)
             }
         }
         return {
+            type: ExportType.Function,
             name,
             body: body.replaceAll(';;', ';'),
             externalIdentifiers: searchExternalIdentifiers(initializer)
@@ -31,11 +32,11 @@ export function extractFunction(name: string, declaration: ExportedDeclarations)
         if (kind === SyntaxKind.ArrowFunction && name === 'default' && !body.startsWith('export default ')) {
             body = `export default ${body}`;
         }
-        const res = {
-            name: name,
+        return {
+            type: ExportType.Function,
+            name,
             body,
             externalIdentifiers
         };
-        return res;
     }
 }

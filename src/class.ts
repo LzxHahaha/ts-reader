@@ -1,5 +1,5 @@
 import { ClassDeclaration, ExportedDeclarations, SyntaxKind } from "ts-morph";
-import { ExportData } from "./index.type";
+import { ExportData, ExportType } from "./index.type";
 import { getClassDeclaration } from "./declares";
 
 export function extractClass(name: string, declaration: ExportedDeclarations): ExportData | undefined {
@@ -9,6 +9,7 @@ export function extractClass(name: string, declaration: ExportedDeclarations): E
     }
     const decalreString = getClassDeclaration(declaration as ClassDeclaration);
     const res = {
+        type: ExportType.Class,
         name: name,
         body: `declare ${decalreString}`,
         functions: [],

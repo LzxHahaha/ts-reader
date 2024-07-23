@@ -1,12 +1,28 @@
 import { InterfaceA, InterfaceB, InterfaceAny, EnumA, EnumB } from './mockTypes';
 
+const innerVar = {
+    a: {
+        b: 1
+    },
+    c: 2,
+    d: [
+        {
+            aa: 1,
+            bb: 2
+        },
+        {
+            aa: 3
+        }
+    ]
+};
+
 function innerFunc() {
     return 'innerFunc' + EnumA.A;
 }
 
 export function funcOnly(input: InterfaceA): InterfaceAny {
     const { func } = input;
-    func();
+    func(innerVar.a.b);
     return {
         [EnumA.A]: innerFunc()
     };

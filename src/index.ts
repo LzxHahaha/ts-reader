@@ -19,43 +19,77 @@ export async function read(fileName: string, options?: ProjectOptions): Promise<
 
     const localDeclarations = getLocalDeclarations(sourceFile) as any;
 
-    const exportFuncs: Record<string, ExportData> = {};
+    const exportData: Record<string, ExportData> = {};
     exportedDeclarations.forEach((declarations, name) => {
         declarations.forEach((declaration) => {
-            const func = extractFunction(name, declaration) || extractClass(name, declaration);
-            if (func) {
-                exportFuncs[name] = func;
+            const data = extractFunction(name, declaration) || extractClass(name, declaration);
+            if (data) {
+                exportData[name] = data;
             }
         });
     });
 
     const res: ExportCode[] = [];
-    for (const funcName in exportFuncs) {
-        const { name, body, externalIdentifiers } = exportFuncs[funcName];
-        let importDeclare = '';
+    for (const funcName in exportData) {
+        const { type, name, body, externalIdentifiers } = exportData[funcName];
+
         let localDeclares = '';
+        const importDeclares: Record<string, string[]> = {};
         for (const externalIdentifier of externalIdentifiers) {
             const dep = importDeclarations[externalIdentifier] || localDeclarations[externalIdentifier];
             if (!dep) {
                 console.warn(`Cannot find declaration for '${externalIdentifier}' in '${name}'`);
-                importDeclare += `declare const ${externalIdentifier}: any;\n`;
+                localDeclares += `declare const ${externalIdentifier}: any;\n`;
                 continue;
             }
             if (dep.module) {
-                importDeclare += dep.text + '\n';
+                importDeclares[dep.module] = importDeclares[dep.module] || [];
+                importDeclares[dep.module].push(dep.text);
             } else {
-                localDeclares += `${dep.text}\n`;
+                localDeclares += (dep.text.startsWith('declare ') ? dep.text : `declare ${dep.text}`) + '\n';
             }
         }
 
-        let declarationStr = `${importDeclare}${localDeclares}`;
+
         res.push({
-            type: 'function',
+            type,
             name,
-            code: `${declarationStr}${body}`.trim()
+            importDeclares,
+            localDeclares,
+            code: body
         });
     }
 
     return res;
 }
 
+export interface MergeCodeOptions {
+    beforeImports?: string;
+    afterImports?: string;
+    beforeLocal?: string;
+    afterLocal?: string;
+    beforeCode?: string;
+    afterCode?: string;
+}
+
+export function getCode(data: ExportCode, options: MergeCodeOptions = {}): string {
+    const { importDeclares, localDeclares = '', code } = data;
+    const {
+        beforeImports = '',
+        afterImports = '',
+        beforeLocal = '',
+        afterLocal = '',
+        beforeCode = '',
+        afterCode = ''
+    } = options;
+
+    const importDeclare = importDeclares ? Object.entries(importDeclares).map(([module, declares]) => {
+        return `declare module '${module}' {\n${declares.join('\n')}\n}\n`;
+    }).join('') : '';
+
+    const importStatements = importDeclare ? `${beforeImports}${importDeclare}${afterImports}` : '';
+    const localStatements = localDeclares ? `${beforeLocal}${localDeclares}${afterLocal}` : '';
+    const codeStatements = `${beforeCode}${code}${afterCode}`;
+
+    return `${importStatements}${localStatements}${codeStatements}`;
+}

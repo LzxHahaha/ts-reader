@@ -1,11 +1,12 @@
 {
   "name": "ts-code-extractor",
-  "version": "0.0.1",
+  "version": "0.0.2-alpha.4",
   "description": "",
-  "main": "dist/index.ts",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build",
+    "clean": "tsc --build --clean",
+    "prepublishOnly": "npm run clean && npm run build",
     "test": "jest",
     "test:cov": "jest --coverage"
   },

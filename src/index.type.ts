@@ -4,16 +4,24 @@ export interface DependData {
     module: string;
 }
 
+export enum ExportType {
+    Function,
+    Class
+}
+
 export interface ExportData {
+    type: ExportType;
     name: string;
     body: string;
     externalIdentifiers: string[];
 }
 
 export interface ExportCode {
-    type: 'function' | 'class';
+    type: ExportType;
     name: string;
     code: string;
+    importDeclares?: Record<string, string[]>;
+    localDeclares?: string;
 }
 
 export interface ClassStructure {
