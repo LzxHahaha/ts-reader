@@ -1,13 +1,18 @@
 import { MethodDeclaration, Node, PropertyAccessExpression, SyntaxKind, VariableDeclaration } from "ts-morph";
 import { isTsSymbol } from "./utils/global";
 
-export function searchExternalIdentifiers(declaration: Node, res = new Set<string>(), parentScopeVar = new Set<string>()) {
+export function searchExternalIdentifiers(declaration: Node | undefined, res = new Set<string>(), parentScopeVar = new Set<string>()): string[] {
+    if (!declaration) {
+        return [];
+    }
     const scopeVariableNames = new Set<string>(parentScopeVar);
     const declarartionKind = declaration.getKind();
+    // add current function name
     if (declarartionKind === SyntaxKind.FunctionDeclaration) {
         const name = (declaration as any).getName();
         scopeVariableNames.add(name);
     }
+    // add member names
     if (declarartionKind === SyntaxKind.ClassDeclaration) {
         const name = (declaration as any).getName();
         scopeVariableNames.add(name);

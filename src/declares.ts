@@ -1,5 +1,6 @@
-import { SyntaxKind, TypeAliasDeclaration, InterfaceDeclaration, EnumDeclaration, VariableDeclarationList, VariableDeclaration, FunctionDeclaration, Node, EnumMember, ClassDeclaration, ImportDeclaration, SourceFile, MethodDeclaration, GetAccessorDeclaration, SetAccessorDeclaration } from "ts-morph";
-import { ClassStructure, DependData } from "./index.type";
+import { SyntaxKind, TypeAliasDeclaration, InterfaceDeclaration, EnumDeclaration, VariableDeclarationList, VariableDeclaration, FunctionDeclaration, Node, EnumMember, ClassDeclaration, ImportDeclaration, SourceFile, MethodDeclaration, GetAccessorDeclaration, SetAccessorDeclaration, PropertyDeclaration, ClassMemberTypes } from "ts-morph";
+import { ClassFunction, ClassStructure, DependData } from "./index.type";
+import { searchExternalIdentifiers } from "./deps";
 
 export function getImportDeclarations(imports: ImportDeclaration[]): Record<string, DependData> {
     const res: Record<string, DependData> = {};
@@ -80,7 +81,7 @@ export function getDeclareString(declaration?: Node, name?: string): string | un
             declareStatement = getGetterSetterDeclaration(declaration as GetAccessorDeclaration);
             break;
         case SyntaxKind.ClassDeclaration:
-            declareStatement = getClassDeclaration(declaration as ClassDeclaration);
+            declareStatement = getClassDeclaration(getClassStructure(declaration as ClassDeclaration));
             break;
         case SyntaxKind.PropertyDeclaration:
             declareStatement = declaration.getText();
@@ -183,8 +184,8 @@ function getGetterSetterDeclaration(funcDecl: GetAccessorDeclaration | SetAccess
     return `${modifiers ? modifiers + ' ' : ''}${isGetter ? 'get' : 'set'} ${name}(${params}):${returnType};`;
 }
 
-export function getClassDeclaration(classDeclaration: ClassDeclaration): string {
-    const structure = getClassStructure(classDeclaration);
+
+export function getClassDeclaration(structure: ClassStructure | undefined) {
     if (!structure) {
         return '';
     }
@@ -192,12 +193,13 @@ export function getClassDeclaration(classDeclaration: ClassDeclaration): string 
     return `class ${name}${type}${ext}${impl} {\n${body.map(([, declareStr]) => `${declareStr}`).join('')}}`;
 }
 
-export function getClassStructure(classDeclaration: ClassDeclaration): ClassStructure | undefined {
+export function getClassStructure(classDeclaration: ClassDeclaration, scanFunc = false): ClassStructure | undefined {
     const className = classDeclaration.getName();
     if (!className) {
         return;
     }
 
+    const functions: ClassFunction[] = [];
 
     const typeParams = classDeclaration.getTypeParameters();
     let typeString = '';
@@ -232,6 +234,11 @@ export function getClassStructure(classDeclaration: ClassDeclaration): ClassStru
         if (memberKind === SyntaxKind.Constructor || memberKind === SyntaxKind.ClassStaticBlockDeclaration) {
             continue;
         }
+        const funcData = scanFunc && getClassMemberFunction(member);
+        if (funcData) {
+            functions.push(funcData);
+        }
+
         let propStr = getDeclareString(member);
         const modifiers = (member as any).getModifiers().map((modifier: any) => modifier.getText()).join(' ');
         if (propStr) {
@@ -247,6 +254,48 @@ export function getClassStructure(classDeclaration: ClassDeclaration): ClassStru
         type: typeString,
         ext: exts.length ? ` extends ${exts.join(', ')}` : '',
         impl: impls.length ? ` implements ${impls.join(', ')}` : '',
-        body
+        body,
+        functions
     }
+}
+
+function getClassMemberFunction(member: ClassMemberTypes): ClassFunction | undefined {
+    const memberKind = member.getKind();
+    if (memberKind !== SyntaxKind.MethodDeclaration && memberKind !== SyntaxKind.PropertyDeclaration) {
+        return;
+    }
+    const scope = (member as any).getScope?.();
+
+    if (scope !== 'public') {
+        return;
+    }
+
+    if (memberKind === SyntaxKind.MethodDeclaration) {
+        const method = member as MethodDeclaration;
+        const name = method.getName();
+        const isStatic = method.isStatic();
+        return {
+            name,
+            body: method.getText(),
+            isProp: false,
+            isStatic,
+            externalIdentifiers: searchExternalIdentifiers(method)
+        };
+    } else if (memberKind === SyntaxKind.PropertyDeclaration) {
+        const prop = member as PropertyDeclaration;
+        const typeNode = prop.getTypeNode();
+        if (typeNode?.getKind() !== SyntaxKind.FunctionType) {
+            return;
+        }
+        const name = prop.getName();
+        const isStatic = prop.isStatic();
+        return {
+            name,
+            body: prop.getText(),
+            isProp: true,
+            isStatic,
+            externalIdentifiers: searchExternalIdentifiers(prop.getInitializer())
+        };
+    }
+
 }

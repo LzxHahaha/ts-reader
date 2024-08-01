@@ -14,12 +14,14 @@ export interface ExportData {
     name: string;
     body: string;
     externalIdentifiers: string[];
+    classFunctions?: ClassFunction[];
 }
 
 export interface ExportCode {
     type: ExportType;
     name: string;
     code: string;
+    classFunctions?: ClassFunction[];
     importDeclares?: Record<string, string[]>;
     localDeclares?: string;
 }
@@ -30,4 +32,13 @@ export interface ClassStructure {
     ext: string;
     impl: string;
     body: [name: string, declareStr: string][];
+    functions: ClassFunction[];
 }
+
+export interface ClassFunction {
+    name: string;
+    body: string;
+    isProp: boolean;
+    isStatic: boolean;
+    externalIdentifiers: string[];
+};

@@ -4,9 +4,7 @@ import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
 import { extractClass } from "./class";
 
-declare global {
-    let tsSymbols: Set<string>;
-};
+export * from './index.type';
 
 export async function read(fileName: string, options?: ProjectOptions): Promise<ExportCode[]> {
     const project = new Project(options);
@@ -35,8 +33,8 @@ export async function read(fileName: string, options?: ProjectOptions): Promise<
     });
 
     const res: ExportCode[] = [];
-    for (const funcName in exportData) {
-        const { type, name, body, externalIdentifiers } = exportData[funcName];
+    for (const dataKey in exportData) {
+        const { type, name, body, externalIdentifiers, classFunctions } = exportData[dataKey];
 
         let localDeclares = '';
         const importDeclares: Record<string, string[]> = {};
@@ -61,7 +59,8 @@ export async function read(fileName: string, options?: ProjectOptions): Promise<
             name,
             importDeclares,
             localDeclares,
-            code: body
+            code: body,
+            classFunctions
         });
     }
 
