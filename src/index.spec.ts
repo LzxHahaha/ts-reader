@@ -103,7 +103,12 @@ describe('read class files', () => {
         const res = await read(mockFile('./mock/mockClass.ts'));
         expect(res.length).toBe(2);
         expect(res[0].name).toBe('A');
-        expect(getCode(res[0])).toBe(`declare class A {
+        expect(getCode(res[0])).toBe(`declare module './mockTypes' {
+interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;}
+interface InterfaceAny {}
+const variableA:number;
+}
+declare class A {
 constructor(public e: number, private f?: number, g?: boolean);
 public a: number = 1;
 public b: boolean;
@@ -117,9 +122,36 @@ public foooo(v:InterfaceA):void;
 private barrrr(input:InterfaceAny):void;
 protected protectedBar():void;
 }`);
+        expect(res[0].classFunctions?.length).toBe(2);
+        expect(res[0].classFunctions?.[0].name).toBe('Foo');
+        expect(res[0].classFunctions?.[0].isProp).toBe(false);
+        expect(res[0].classFunctions?.[0].isStatic).toBe(true);
+        expect(res[0].classFunctions?.[0].externalIdentifiers).toEqual([]);
+        expect(res[0].classFunctions?.[1].name).toBe('foooo');
+        expect(res[0].classFunctions?.[1].isProp).toBe(false);
+        expect(res[0].classFunctions?.[1].isStatic).toBe(false);
+        expect(res[0].classFunctions?.[1].externalIdentifiers).toEqual(['InterfaceA']);
 
         expect(res[1].name).toBe('B');
-        expect(getCode(res[1])).toBe(`declare class B extends A implements InterfaceA, InterfaceAny {
+        expect(getCode(res[1])).toBe(`declare module './mockTypes' {
+interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;}
+interface InterfaceAny {}
+}
+declare class A {
+constructor(public e: number, private f?: number, g?: boolean);
+public a: number = 1;
+public b: boolean;
+private c?: string;
+protected d: number;
+static Val = 123;
+static Foo():number;
+get FFF():number;
+set FFF(v:any):void;
+public foooo(v:InterfaceA):void;
+private barrrr(input:InterfaceAny):void;
+protected protectedBar():void;
+}
+declare class B extends A implements InterfaceA, InterfaceAny {
 readonly v = 123;
 func(...args:any[]):void;
 foo = async (a: number, c: InterfaceAny): Promise<boolean> => {
@@ -138,7 +170,14 @@ v1?: T;
 v2?: K;
 }`);
         expect(res[1].name).toBe('B');
-        expect(getCode(res[1])).toBe(`declare class B<U = number> extends A<InterfaceA, U> {
+        expect(getCode(res[1])).toBe(`declare module './mockTypes' {
+interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;}
+}
+declare class A<T,K> {
+v1?: T;
+v2?: K;
+}
+declare class B<U = number> extends A<InterfaceA, U> {
 ov!: number;
 }`)
     });

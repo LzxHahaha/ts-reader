@@ -1,6 +1,6 @@
 import { SyntaxKind, TypeAliasDeclaration, InterfaceDeclaration, EnumDeclaration, VariableDeclarationList, VariableDeclaration, FunctionDeclaration, Node, EnumMember, ClassDeclaration, ImportDeclaration, SourceFile, MethodDeclaration, GetAccessorDeclaration, SetAccessorDeclaration, PropertyDeclaration, ClassMemberTypes } from "ts-morph";
 import { ClassFunction, ClassStructure, DependData } from "./index.type";
-import { searchExternalIdentifiers } from "./deps";
+import { getClassMemberNames, searchExternalIdentifiers } from "./deps";
 
 export function getImportDeclarations(imports: ImportDeclaration[]): Record<string, DependData> {
     const res: Record<string, DependData> = {};
@@ -194,12 +194,10 @@ export function getClassDeclaration(structure: ClassStructure | undefined) {
 }
 
 export function getClassStructure(classDeclaration: ClassDeclaration, scanFunc = false): ClassStructure | undefined {
-    const className = classDeclaration.getName();
-    if (!className) {
-        return;
-    }
+    const className = classDeclaration.getName() || '';
 
     const functions: ClassFunction[] = [];
+    const memberNames = getClassMemberNames(classDeclaration);
 
     const typeParams = classDeclaration.getTypeParameters();
     let typeString = '';
@@ -234,7 +232,7 @@ export function getClassStructure(classDeclaration: ClassDeclaration, scanFunc =
         if (memberKind === SyntaxKind.Constructor || memberKind === SyntaxKind.ClassStaticBlockDeclaration) {
             continue;
         }
-        const funcData = scanFunc && getClassMemberFunction(member);
+        const funcData = scanFunc && getClassMemberFunction(member, memberNames);
         if (funcData) {
             functions.push(funcData);
         }
@@ -259,7 +257,7 @@ export function getClassStructure(classDeclaration: ClassDeclaration, scanFunc =
     }
 }
 
-function getClassMemberFunction(member: ClassMemberTypes): ClassFunction | undefined {
+function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<string>): ClassFunction | undefined {
     const memberKind = member.getKind();
     if (memberKind !== SyntaxKind.MethodDeclaration && memberKind !== SyntaxKind.PropertyDeclaration) {
         return;
@@ -279,7 +277,7 @@ function getClassMemberFunction(member: ClassMemberTypes): ClassFunction | undef
             body: method.getText(),
             isProp: false,
             isStatic,
-            externalIdentifiers: searchExternalIdentifiers(method)
+            externalIdentifiers: searchExternalIdentifiers(method, undefined, memberNames)
         };
     } else if (memberKind === SyntaxKind.PropertyDeclaration) {
         const prop = member as PropertyDeclaration;
@@ -294,7 +292,7 @@ function getClassMemberFunction(member: ClassMemberTypes): ClassFunction | undef
             body: prop.getText(),
             isProp: true,
             isStatic,
-            externalIdentifiers: searchExternalIdentifiers(prop.getInitializer())
+            externalIdentifiers: searchExternalIdentifiers(prop.getInitializer(), undefined, memberNames)
         };
     }
 

@@ -1,4 +1,4 @@
-import { MethodDeclaration, Node, PropertyAccessExpression, SyntaxKind, VariableDeclaration } from "ts-morph";
+import { ClassDeclaration, MethodDeclaration, Node, PropertyAccessExpression, SyntaxKind, VariableDeclaration } from "ts-morph";
 import { isTsSymbol } from "./utils/global";
 
 export function searchExternalIdentifiers(declaration: Node | undefined, res = new Set<string>(), parentScopeVar = new Set<string>()): string[] {
@@ -14,19 +14,8 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
     }
     // add member names
     if (declarartionKind === SyntaxKind.ClassDeclaration) {
-        const name = (declaration as any).getName();
-        scopeVariableNames.add(name);
-        declaration.asKind(SyntaxKind.ClassDeclaration)!.getMembers().forEach(member => {
-            const memberKind = member.getKind();
-            if (memberKind === SyntaxKind.MethodDeclaration
-                || memberKind === SyntaxKind.PropertyDeclaration
-                || memberKind === SyntaxKind.GetAccessor
-                || memberKind === SyntaxKind.SetAccessor
-            ) {
-                const name = (member as MethodDeclaration).getName();
-                scopeVariableNames.add(name);
-            }
-        });
+        const members = getClassMemberNames(declaration as ClassDeclaration);
+        members.size && members.forEach(name => scopeVariableNames.add(name));
     }
 
     declaration.forEachDescendant((node, traversal) => {
@@ -70,9 +59,15 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
         }
 
         if (kind === SyntaxKind.PropertyAccessExpression || kind === SyntaxKind.ElementAccessExpression) {
-            const expression = (node as PropertyAccessExpression).getDescendantsOfKind(SyntaxKind.Identifier);
-            if (expression.length > 0) {
-                checkName = expression[0].getText();
+            const expression = (node as PropertyAccessExpression).getExpression();
+            const expressionKind = expression.getKind();
+            if (expressionKind === SyntaxKind.SuperKeyword || expressionKind === SyntaxKind.ThisKeyword) {
+                traversal.skip();
+                return;
+            }
+            const ids = (node as PropertyAccessExpression).getDescendantsOfKind(SyntaxKind.Identifier);
+            if (ids.length > 0) {
+                checkName = ids[0].getText();
                 traversal.skip();
             }
         }
@@ -92,4 +87,22 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
         res.add(checkName);
     });
     return Array.from(res);
+}
+
+export function getClassMemberNames(declaration: ClassDeclaration): Set<string> {
+    const res = new Set<string>();
+    const name = declaration.getName();
+    name && res.add(name);
+    declaration.getMembers().forEach(member => {
+        const memberKind = member.getKind();
+        if (memberKind === SyntaxKind.MethodDeclaration
+            || memberKind === SyntaxKind.PropertyDeclaration
+            || memberKind === SyntaxKind.GetAccessor
+            || memberKind === SyntaxKind.SetAccessor
+        ) {
+            const name = (member as MethodDeclaration).getName();
+            res.add(name);
+        }
+    });
+    return res;
 }
