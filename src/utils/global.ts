@@ -32,6 +32,7 @@ let tsSymbols = new Set([
     "URIError",
     "WeakMap",
     "WeakSet",
+    "document",
     "eval",
     "isFinite",
     "isNaN",
@@ -44,6 +45,7 @@ let tsSymbols = new Set([
     "encodeURIComponent",
     "escape",
     "unescape",
+    "window",
     "Math",
     "JSON",
     "Reflect",
@@ -51,7 +53,9 @@ let tsSymbols = new Set([
     "Intl",
     "WebAssembly",
     "super",
-    "this"
+    "this",
+    "global",
+    "globalThis"
 ]);
 
 export function isTsSymbol(symbol: string): boolean {
