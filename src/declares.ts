@@ -84,6 +84,8 @@ export function getDeclareString(declaration?: Node, name?: string): string | un
             declareStatement = getClassDeclaration(getClassStructure(declaration as ClassDeclaration));
             break;
         case SyntaxKind.PropertyDeclaration:
+        case SyntaxKind.MethodSignature:
+        case SyntaxKind.ModuleDeclaration:
             declareStatement = declaration.getText();
             break;
         default:
@@ -282,7 +284,9 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
     } else if (memberKind === SyntaxKind.PropertyDeclaration) {
         const prop = member as PropertyDeclaration;
         const typeNode = prop.getTypeNode();
-        if (typeNode?.getKind() !== SyntaxKind.FunctionType) {
+        const initializer = prop.getInitializer();
+        const debugText = prop?.getText();
+        if (typeNode?.getKind() !== SyntaxKind.FunctionType && initializer?.getKind() !== SyntaxKind.ArrowFunction) {
             return;
         }
         const name = prop.getName();

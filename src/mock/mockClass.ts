@@ -34,8 +34,8 @@ export class A {
         console.log(input);
     }
 
-    protected protectedBar() {
-        console.log(Math.max(this.a, variableA));
+    protected protectedBar(val: number) {
+        console.log(Math.max(this.a, variableA, val));
     }
 }
 
@@ -52,5 +52,6 @@ export class B extends A implements InterfaceA, InterfaceAny {
 
     bar() {
         super.foooo(this);
+        this.protectedBar(this.d);
     }
 }

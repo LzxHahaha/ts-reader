@@ -55,7 +55,21 @@ let tsSymbols = new Set([
     "super",
     "this",
     "global",
-    "globalThis"
+    "globalThis",
+    "Record",
+    "Pick",
+    "Omit",
+    "Exclude",
+    "Extract",
+    "NonNullable",
+    "Parameters",
+    "ConstructorParameters",
+    "ReturnType",
+    "InstanceType",
+    "Required",
+    "ThisType",
+    "OmitThisParameter",
+    "ThisParameterType",
 ]);
 
 export function isTsSymbol(symbol: string): boolean {

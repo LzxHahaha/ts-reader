@@ -120,19 +120,60 @@ get FFF():number;
 set FFF(v:any):void;
 public foooo(v:InterfaceA):void;
 private barrrr(input:InterfaceAny):void;
-protected protectedBar():void;
+protected protectedBar(val:number):void;
 }`);
         expect(res[0].classFunctions?.length).toBe(2);
-        expect(res[0].classFunctions?.[0].name).toBe('Foo');
-        expect(res[0].classFunctions?.[0].isProp).toBe(false);
-        expect(res[0].classFunctions?.[0].isStatic).toBe(true);
-        expect(res[0].classFunctions?.[0].externalIdentifiers).toEqual([]);
-        expect(res[0].classFunctions?.[1].name).toBe('foooo');
-        expect(res[0].classFunctions?.[1].isProp).toBe(false);
-        expect(res[0].classFunctions?.[1].isStatic).toBe(false);
-        expect(res[0].classFunctions?.[1].externalIdentifiers).toEqual(['InterfaceA']);
+        expect(res[0].classFunctions?.[0]).toEqual({
+            name: 'Foo',
+            body: `static Foo() {
+        return A.Val;
+    }`,
+            isProp: false,
+            isStatic: true,
+            externalIdentifiers: []
+        });
+        expect(res[0].classFunctions?.[1]).toEqual({
+            name: 'foooo',
+            body: `public foooo(v: InterfaceA) {
+        this.barrrr(v);
+        return v.func(this.a);
+    }`,
+            isProp: false,
+            isStatic: false,
+            externalIdentifiers: ['InterfaceA']
+        });
 
         expect(res[1].name).toBe('B');
+        expect(res[1].classFunctions?.length).toBe(3);
+        expect(res[1].classFunctions?.[0]).toEqual({
+            name: 'func',
+            body: `func(...args: any[]) {
+        console.log(args);
+    }`,
+            isProp: false,
+            isStatic: false,
+            externalIdentifiers: []
+        });
+        expect(res[1].classFunctions?.[1]).toEqual({
+            name: 'foo',
+            body: `foo = async (a: number, c: InterfaceAny): Promise<boolean> => {
+        return a > c.a;
+    }`,
+            isProp: true,
+            isStatic: false,
+            externalIdentifiers: ['InterfaceAny']
+        });
+        expect(res[1].classFunctions?.[2]).toEqual({
+            name: 'bar',
+            body: `bar() {
+        super.foooo(this);
+        this.protectedBar(this.d);
+    }`,
+            isProp: false,
+            isStatic: false,
+            externalIdentifiers: []
+        });
+
         expect(getCode(res[1])).toBe(`declare module './mockTypes' {
 interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;}
 interface InterfaceAny {}
@@ -149,7 +190,7 @@ get FFF():number;
 set FFF(v:any):void;
 public foooo(v:InterfaceA):void;
 private barrrr(input:InterfaceAny):void;
-protected protectedBar():void;
+protected protectedBar(val:number):void;
 }
 declare class B extends A implements InterfaceA, InterfaceAny {
 readonly v = 123;
