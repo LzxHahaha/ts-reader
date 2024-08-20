@@ -22,8 +22,13 @@ export interface ExportCode {
     name: string;
     code: string;
     classFunctions?: ClassFunction[];
-    importDeclares?: Record<string, string[]>;
+    importDeclares?: Record<string, Declare[]>;
     localDeclares?: string;
+}
+
+export interface Declare {
+    name: string;
+    declare: string;
 }
 
 export interface ClassStructure {

@@ -1,5 +1,5 @@
 import { Project, ProjectOptions } from "ts-morph";
-import { ExportData, ExportCode } from "./index.type";
+import { ExportData, ExportCode, Declare } from "./index.type";
 import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
 import { extractClass } from "./class";
@@ -37,7 +37,7 @@ export async function read(fileName: string, options?: ProjectOptions): Promise<
         const { type, name, body, externalIdentifiers, classFunctions } = exportData[dataKey];
 
         let localDeclares = '';
-        const importDeclares: Record<string, string[]> = {};
+        const importDeclares: Record<string, Declare[]> = {};
         for (const externalIdentifier of externalIdentifiers) {
             const dep = importDeclarations[externalIdentifier] || localDeclarations[externalIdentifier];
             if (!dep) {
@@ -47,7 +47,10 @@ export async function read(fileName: string, options?: ProjectOptions): Promise<
             }
             if (dep.module) {
                 importDeclares[dep.module] = importDeclares[dep.module] || [];
-                importDeclares[dep.module].push(dep.text);
+                importDeclares[dep.module].push({
+                    name: externalIdentifier,
+                    declare: dep.text
+                });
             } else {
                 localDeclares += (dep.text.startsWith('declare ') ? dep.text : `declare ${dep.text}`) + '\n';
             }
@@ -88,7 +91,7 @@ export function getCode(data: ExportCode, options: MergeCodeOptions = {}): strin
     } = options;
 
     const importDeclare = importDeclares ? Object.entries(importDeclares).map(([module, declares]) => {
-        return `declare module '${module}' {\n${declares.join('\n')}\n}\n`;
+        return `declare module '${module}' {\n${declares.map(el => el.declare).join('\n')}\n}\n`;
     }).join('') : '';
 
     const importStatements = importDeclare ? `${beforeImports}${importDeclare}${afterImports}` : '';
