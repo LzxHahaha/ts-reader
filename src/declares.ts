@@ -53,47 +53,37 @@ export function getDeclareString(declaration?: Node, name?: string): string | un
         return;
     }
 
-    let declareStatement: string | undefined;
-
     const kind = declaration.getKind();
     switch (kind) {
         case SyntaxKind.TypeAliasDeclaration:
-            declareStatement = getTypeDeclaration(declaration as TypeAliasDeclaration)
-            break;
+            return getTypeDeclaration(declaration as TypeAliasDeclaration)
         case SyntaxKind.InterfaceDeclaration:
-            declareStatement = getInterfaceDeclaration(declaration as InterfaceDeclaration);
-            break;
+            return getInterfaceDeclaration(declaration as InterfaceDeclaration);
         case SyntaxKind.EnumDeclaration:
-            declareStatement = getMemeberDeclaration(declaration as EnumDeclaration);
-            break;
+            return getEnumDeclaration(declaration as EnumDeclaration);
         case SyntaxKind.VariableStatement:
-            declareStatement = getVariableStatementDeclaration(declaration as VariableDeclarationList);
-            break;
+            return getVariableStatementDeclaration(declaration as VariableDeclarationList);
         case SyntaxKind.VariableDeclaration:
-            declareStatement = getVariableDeclaration(declaration as VariableDeclaration)
-            break;
+            return getVariableDeclaration(declaration as VariableDeclaration)
         case SyntaxKind.FunctionDeclaration:
         case SyntaxKind.MethodDeclaration:
-            declareStatement = getFunctionDeclaration(declaration as FunctionDeclaration);
-            break;
+            return getFunctionDeclaration(declaration as FunctionDeclaration);
         case SyntaxKind.GetAccessor:
         case SyntaxKind.SetAccessor:
-            declareStatement = getGetterSetterDeclaration(declaration as GetAccessorDeclaration);
-            break;
+            return getGetterSetterDeclaration(declaration as GetAccessorDeclaration);
         case SyntaxKind.ClassDeclaration:
-            declareStatement = getClassDeclaration(getClassStructure(declaration as ClassDeclaration));
-            break;
-        case SyntaxKind.PropertyDeclaration:
+            return getClassDeclaration(getClassStructure(declaration as ClassDeclaration));
         case SyntaxKind.MethodSignature:
         case SyntaxKind.ModuleDeclaration:
-            declareStatement = declaration.getText();
-            break;
+            return declaration.getText();
+        case SyntaxKind.PropertyDeclaration:
+            return getPropDeclaretion(declaration as PropertyDeclaration);
         default:
             console.warn(`Unsupported or non-type kind '${kind}' for '${name || (declaration as any).getName?.() || declaration.getText()}'.`);
             break;
     }
 
-    return declareStatement;
+    return;
 }
 
 const importReg = /import\(['"].+['"]\)\.?/g;
@@ -133,7 +123,7 @@ function getInterfaceDeclaration(declaration: InterfaceDeclaration): string {
     return `interface ${interfaceDecl.getName()} ${extendsText}{${interfaceMembers.join('')}}`;
 }
 
-function getMemeberDeclaration(declaration: EnumDeclaration): string {
+function getEnumDeclaration(declaration: EnumDeclaration): string {
     const enumDecl = declaration as EnumDeclaration;
     return `${enumDecl.getConstKeyword()?.getText() ? ' const' : ''} enum ${enumDecl.getName()} {${getEnumMembers(enumDecl.getMembers())}}`;
 }
@@ -193,6 +183,26 @@ export function getClassDeclaration(structure: ClassStructure | undefined) {
     }
     const { name, type, ext, impl, body } = structure;
     return `class ${name}${type}${ext}${impl} {\n${body.map(([, declareStr]) => `${declareStr}`).join('')}}`;
+}
+
+function getPropDeclaretion(prop: PropertyDeclaration) {
+    const typeNode = prop.getTypeNode();
+    const initializer = prop.getInitializer();
+    if (typeNode?.getKind() === SyntaxKind.FunctionType) {
+        return typeNode.getText();
+    }
+    const initializerKind = initializer?.getKind();
+    if (initializerKind === SyntaxKind.ArrowFunction || initializerKind === SyntaxKind.FunctionExpression) {
+        let paramsText = [];
+        const func = initializer?.asKind(SyntaxKind.ArrowFunction)!;
+        // const func = initializer?.asKind(SyntaxKind.FunctionExpression)!;
+        for (const param of func.getParameters()) {
+            paramsText.push(param.getText());
+        }
+        const returnType = formatType(func.getReturnType().getText());
+        return `${prop.getName()}: (${paramsText.join(',')}) => ${returnType};`;
+    }
+    return prop.getText();
 }
 
 export function getClassStructure(classDeclaration: ClassDeclaration, scanFunc = false): ClassStructure | undefined {
@@ -299,5 +309,4 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
             externalIdentifiers: searchExternalIdentifiers(prop.getInitializer(), undefined, memberNames)
         };
     }
-
 }

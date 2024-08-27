@@ -50,8 +50,20 @@ export class B extends A implements InterfaceA, InterfaceAny {
         return a > c.a;
     }
 
+    fooA = (a: number) => {
+        return a > 1;
+    }
+
+    fooB = (a: number) => {
+        return new Promise<boolean>((resolve) => resolve(a > 1));
+    }
+
     bar() {
         super.foooo(this);
         this.protectedBar(this.d);
+    }
+
+    barA() {
+        return this.fooA(1);
     }
 }

@@ -144,7 +144,7 @@ protected protectedBar(val:number):void;
         });
 
         expect(res[1].name).toBe('B');
-        expect(res[1].classFunctions?.length).toBe(3);
+        expect(res[1].classFunctions?.length).toBe(6);
         expect(res[1].classFunctions?.[0]).toEqual({
             name: 'func',
             body: `func(...args: any[]) {
@@ -163,7 +163,7 @@ protected protectedBar(val:number):void;
             isStatic: false,
             externalIdentifiers: ['InterfaceAny']
         });
-        expect(res[1].classFunctions?.[2]).toEqual({
+        expect(res[1].classFunctions?.[4]).toEqual({
             name: 'bar',
             body: `bar() {
         super.foooo(this);
@@ -195,10 +195,11 @@ protected protectedBar(val:number):void;
 declare class B extends A implements InterfaceA, InterfaceAny {
 readonly v = 123;
 func(...args:any[]):void;
-foo = async (a: number, c: InterfaceAny): Promise<boolean> => {
-        return a > c.a;
-    }
+foo: (a: number,c: InterfaceAny) => Promise<boolean>;
+fooA: (a: number) => boolean;
+fooB: (a: number) => Promise<boolean>;
 bar():void;
+barA():boolean;
 }`);
     });
 
