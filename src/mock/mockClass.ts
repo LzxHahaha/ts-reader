@@ -40,7 +40,11 @@ export class A {
 }
 
 export class B extends A implements InterfaceA, InterfaceAny {
-    readonly v = 123;
+    readonly v0 = 123;
+    readonly v1: number = 123;
+
+    @attr
+    v2 = 123;
 
     func(...args: any[]) {
         console.log(args);
@@ -58,6 +62,11 @@ export class B extends A implements InterfaceA, InterfaceAny {
         return new Promise<boolean>((resolve) => resolve(a > 1));
     }
 
+    @attr
+    fooC = (a: number) => {
+        return a;
+    }
+
     bar() {
         super.foooo(this);
         this.protectedBar(this.d);
@@ -66,4 +75,17 @@ export class B extends A implements InterfaceA, InterfaceAny {
     barA() {
         return this.fooA(1);
     }
+
+    @attr
+    barB() {
+        return this.fooA(1);
+    }
+
+    barC?: () => void;
+
+    barD!: () => void;
+}
+
+function attr(value: any) {
+    return value;
 }

@@ -72,6 +72,11 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
             }
         }
 
+        if (kind === SyntaxKind.Decorator) {
+            checkName = node.getFirstChildByKind(SyntaxKind.Identifier)?.getText() || '';
+            traversal.skip();
+        }
+
         if (kind === SyntaxKind.Identifier) {
             checkName = node.getText();
             const parentKind = node.getParent()?.getKind();

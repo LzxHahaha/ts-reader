@@ -105,18 +105,21 @@ function getInterfaceDeclaration(declaration: InterfaceDeclaration): string {
         : '';
     const interfaceMembers = interfaceDecl.getMembers().map(member => {
         const memberKind = member.getKind();
-        const isOptional = (member as any).hasQuestionToken?.() ? '?' : '';
+        const questionToken = (member as any).hasQuestionToken?.() ? '?' : '';
+        const exclamationToken = (member as any).hasExclamationToken?.() ? '!' : '';
+        const mark = questionToken || exclamationToken;
+
         if (memberKind === SyntaxKind.MethodSignature) {
             const methodMember = member.asKind(SyntaxKind.MethodSignature);
             const name = methodMember?.getName();
             const params = methodMember?.getParameters().map(p => {
                 return formatType(p.getText());
             }).join(", ");
-            return `${name}${isOptional}(${params})=>${formatType(methodMember?.getReturnType().getText())};`;
+            return `${name}${mark}(${params})=>${formatType(methodMember?.getReturnType().getText())};`;
         }
         let memberType = formatType(member.getType().getBaseTypeOfLiteralType().getText());
         if ((member as any).getName) {
-            return `${(member as any).getName()}${isOptional}:${memberType};`;
+            return `${(member as any).getName()}${mark}:${memberType};`;
         }
         return '';
     });
@@ -188,9 +191,15 @@ export function getClassDeclaration(structure: ClassStructure | undefined) {
 function getPropDeclaretion(prop: PropertyDeclaration) {
     const typeNode = prop.getTypeNode();
     const initializer = prop.getInitializer();
+
+    const questionToken = prop.hasQuestionToken() ? '?' : '';
+    const exclamationToken = prop.hasExclamationToken() ? '!' : '';
+    const marker = questionToken || exclamationToken;
+
     if (typeNode?.getKind() === SyntaxKind.FunctionType) {
-        return typeNode.getText();
+        return `${prop.getName()}${marker}:${formatType(typeNode.getText())};`;
     }
+
     const initializerKind = initializer?.getKind();
     if (initializerKind === SyntaxKind.ArrowFunction || initializerKind === SyntaxKind.FunctionExpression) {
         let paramsText = [];
@@ -200,9 +209,13 @@ function getPropDeclaretion(prop: PropertyDeclaration) {
             paramsText.push(param.getText());
         }
         const returnType = formatType(func.getReturnType().getText());
-        return `${prop.getName()}: (${paramsText.join(',')}) => ${returnType};`;
+        return `${prop.getName()}${marker}: (${paramsText.join(',')}) => ${returnType};`;
     }
-    return prop.getText();
+    if (prop.getName() === 'v') {
+        console.error('vvv', prop.getType().getText());
+    }
+
+    return `${prop.getName()}${marker}:${formatType(prop.getType().getText())};`;
 }
 
 export function getClassStructure(classDeclaration: ClassDeclaration, scanFunc = false): ClassStructure | undefined {
@@ -249,7 +262,7 @@ export function getClassStructure(classDeclaration: ClassDeclaration, scanFunc =
             functions.push(funcData);
         }
 
-        let propStr = getDeclareString(member);
+        let propStr = getDeclareString(member as any);
         const modifiers = (member as any).getModifiers().map((modifier: any) => modifier.getText()).join(' ');
         if (propStr) {
             if (modifiers && !propStr.includes(`${modifiers} `)) {

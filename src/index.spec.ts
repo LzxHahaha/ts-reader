@@ -110,11 +110,11 @@ const variableA:number;
 }
 declare class A {
 constructor(public e: number, private f?: number, g?: boolean);
-public a: number = 1;
-public b: boolean;
-private c?: string;
-protected d: number;
-static Val = 123;
+public a:number;
+public b:boolean;
+private c?:string;
+protected d:number;
+static Val:number;
 static Foo():number;
 get FFF():number;
 set FFF(v:any):void;
@@ -144,7 +144,7 @@ protected protectedBar(val:number):void;
         });
 
         expect(res[1].name).toBe('B');
-        expect(res[1].classFunctions?.length).toBe(6);
+        expect(res[1].classFunctions?.length).toBe(10);
         expect(res[1].classFunctions?.[0]).toEqual({
             name: 'func',
             body: `func(...args: any[]) {
@@ -163,7 +163,7 @@ protected protectedBar(val:number):void;
             isStatic: false,
             externalIdentifiers: ['InterfaceAny']
         });
-        expect(res[1].classFunctions?.[4]).toEqual({
+        expect(res[1].classFunctions?.[5]).toEqual({
             name: 'bar',
             body: `bar() {
         super.foooo(this);
@@ -180,11 +180,11 @@ interface InterfaceAny {}
 }
 declare class A {
 constructor(public e: number, private f?: number, g?: boolean);
-public a: number = 1;
-public b: boolean;
-private c?: string;
-protected d: number;
-static Val = 123;
+public a:number;
+public b:boolean;
+private c?:string;
+protected d:number;
+static Val:number;
 static Foo():number;
 get FFF():number;
 set FFF(v:any):void;
@@ -192,14 +192,21 @@ public foooo(v:InterfaceA):void;
 private barrrr(input:InterfaceAny):void;
 protected protectedBar(val:number):void;
 }
+declare function attr(value:any):any;
 declare class B extends A implements InterfaceA, InterfaceAny {
-readonly v = 123;
+readonly v0:123;
+readonly v1:number;
+@attr v2:number;
 func(...args:any[]):void;
 foo: (a: number,c: InterfaceAny) => Promise<boolean>;
 fooA: (a: number) => boolean;
 fooB: (a: number) => Promise<boolean>;
+@attr fooC: (a: number) => number;
 bar():void;
 barA():boolean;
+@attr barB():boolean;
+barC?:() => void;
+barD!:() => void;
 }`);
     });
 
@@ -208,19 +215,19 @@ barA():boolean;
         expect(res.length).toBe(2);
         expect(res[0].name).toBe('A');
         expect(getCode(res[0])).toBe(`declare class A<T,K> {
-v1?: T;
-v2?: K;
+v1?:T;
+v2?:K;
 }`);
         expect(res[1].name).toBe('B');
         expect(getCode(res[1])).toBe(`declare module './mockTypes' {
 interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;}
 }
 declare class A<T,K> {
-v1?: T;
-v2?: K;
+v1?:T;
+v2?:K;
 }
 declare class B<U = number> extends A<InterfaceA, U> {
-ov!: number;
+ov!:number;
 }`)
     });
 });
