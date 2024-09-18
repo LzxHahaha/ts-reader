@@ -15,6 +15,7 @@ export interface ExportData {
     body: string;
     externalIdentifiers: string[];
     classFunctions?: ClassFunction[];
+    linesRange: [number, number];
 }
 
 export interface ExportCode {
@@ -24,6 +25,7 @@ export interface ExportCode {
     classFunctions?: ClassFunction[];
     importDeclares?: Record<string, Declare[]>;
     localDeclares?: string;
+    linesRange: [number, number];
 }
 
 export interface Declare {
@@ -46,4 +48,5 @@ export interface ClassFunction {
     isProp: boolean;
     isStatic: boolean;
     externalIdentifiers: string[];
+    linesRange: [number, number];
 };

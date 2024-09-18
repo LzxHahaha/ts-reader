@@ -130,7 +130,8 @@ protected protectedBar(val:number):void;
     }`,
             isProp: false,
             isStatic: true,
-            externalIdentifiers: []
+            externalIdentifiers: [],
+            linesRange: [16, 18]
         });
         expect(res[0].classFunctions?.[1]).toEqual({
             name: 'foooo',
@@ -140,7 +141,8 @@ protected protectedBar(val:number):void;
     }`,
             isProp: false,
             isStatic: false,
-            externalIdentifiers: ['InterfaceA']
+            externalIdentifiers: ['InterfaceA'],
+            linesRange: [28, 31]
         });
 
         expect(res[1].name).toBe('B');
@@ -152,7 +154,8 @@ protected protectedBar(val:number):void;
     }`,
             isProp: false,
             isStatic: false,
-            externalIdentifiers: []
+            externalIdentifiers: [],
+            linesRange: [49, 51]
         });
         expect(res[1].classFunctions?.[1]).toEqual({
             name: 'foo',
@@ -161,7 +164,8 @@ protected protectedBar(val:number):void;
     }`,
             isProp: true,
             isStatic: false,
-            externalIdentifiers: ['InterfaceAny']
+            externalIdentifiers: ['InterfaceAny'],
+            linesRange: [53, 55]
         });
         expect(res[1].classFunctions?.[5]).toEqual({
             name: 'bar',
@@ -171,7 +175,8 @@ protected protectedBar(val:number):void;
     }`,
             isProp: false,
             isStatic: false,
-            externalIdentifiers: []
+            externalIdentifiers: [],
+            linesRange: [70, 73]
         });
 
         expect(getCode(res[1])).toBe(`declare module './mockTypes' {

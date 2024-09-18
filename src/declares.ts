@@ -302,7 +302,8 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
             body: method.getText(),
             isProp: false,
             isStatic,
-            externalIdentifiers: searchExternalIdentifiers(method, undefined, memberNames)
+            externalIdentifiers: searchExternalIdentifiers(method, undefined, memberNames),
+            linesRange: [method.getStartLineNumber(), method.getEndLineNumber()]
         };
     } else if (memberKind === SyntaxKind.PropertyDeclaration) {
         const prop = member as PropertyDeclaration;
@@ -319,7 +320,8 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
             body: prop.getText(),
             isProp: true,
             isStatic,
-            externalIdentifiers: searchExternalIdentifiers(prop.getInitializer(), undefined, memberNames)
+            externalIdentifiers: searchExternalIdentifiers(prop.getInitializer(), undefined, memberNames),
+            linesRange: [prop.getStartLineNumber(), prop.getEndLineNumber()]
         };
     }
 }

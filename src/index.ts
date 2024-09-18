@@ -34,7 +34,7 @@ export async function read(fileName: string, options?: ProjectOptions): Promise<
 
     const res: ExportCode[] = [];
     for (const dataKey in exportData) {
-        const { type, name, body, externalIdentifiers, classFunctions } = exportData[dataKey];
+        const { type, name, body, externalIdentifiers, classFunctions, linesRange } = exportData[dataKey];
 
         let localDeclares = '';
         const importDeclares: Record<string, Declare[]> = {};
@@ -56,14 +56,14 @@ export async function read(fileName: string, options?: ProjectOptions): Promise<
             }
         }
 
-
         res.push({
             type,
             name,
             importDeclares,
             localDeclares,
             code: body,
-            classFunctions
+            classFunctions,
+            linesRange
         });
     }
 

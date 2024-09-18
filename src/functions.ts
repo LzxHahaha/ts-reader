@@ -23,7 +23,8 @@ export function extractFunction(name: string, declaration: ExportedDeclarations)
             type: ExportType.Function,
             name,
             body: body.replaceAll(';;', ';'),
-            externalIdentifiers: searchExternalIdentifiers(initializer)
+            externalIdentifiers: searchExternalIdentifiers(initializer),
+            linesRange: [declaration.getStartLineNumber(), declaration.getEndLineNumber()]
         }
     }
     if (kind === SyntaxKind.FunctionDeclaration || kind === SyntaxKind.ArrowFunction) {
@@ -36,7 +37,8 @@ export function extractFunction(name: string, declaration: ExportedDeclarations)
             type: ExportType.Function,
             name,
             body,
-            externalIdentifiers
+            externalIdentifiers,
+            linesRange: [declaration.getStartLineNumber(), declaration.getEndLineNumber()]
         };
     }
 }

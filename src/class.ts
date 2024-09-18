@@ -14,12 +14,13 @@ export function extractClass(name: string, declaration: ExportedDeclarations): E
         return;
     }
     const decalreString = getClassDeclaration(structure);
-    const res = {
+    const res: ExportData = {
         type: ExportType.Class,
         name: name,
         body: `declare ${decalreString}`,
         classFunctions: structure.functions,
-        externalIdentifiers: searchExternalIdentifiers(declaration)
+        externalIdentifiers: searchExternalIdentifiers(declaration),
+        linesRange: [declaration.getStartLineNumber(), declaration.getEndLineNumber()]
     };
     return res;
 }
