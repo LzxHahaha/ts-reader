@@ -47,6 +47,7 @@ export interface ClassFunction {
     body: string;
     isProp: boolean;
     isStatic: boolean;
+    scope: string;
     externalIdentifiers: string[];
     linesRange: [number, number];
 };

@@ -122,9 +122,10 @@ public foooo(v:InterfaceA):void;
 private barrrr(input:InterfaceAny):void;
 protected protectedBar(val:number):void;
 }`);
-        expect(res[0].classFunctions?.length).toBe(2);
+        expect(res[0].classFunctions?.length).toBe(4);
         expect(res[0].classFunctions?.[0]).toEqual({
             name: 'Foo',
+            scope: 'public',
             body: `static Foo() {
         return A.Val;
     }`,
@@ -135,6 +136,7 @@ protected protectedBar(val:number):void;
         });
         expect(res[0].classFunctions?.[1]).toEqual({
             name: 'foooo',
+            scope: 'public',
             body: `public foooo(v: InterfaceA) {
         this.barrrr(v);
         return v.func(this.a);
@@ -149,6 +151,7 @@ protected protectedBar(val:number):void;
         expect(res[1].classFunctions?.length).toBe(10);
         expect(res[1].classFunctions?.[0]).toEqual({
             name: 'func',
+            scope: 'public',
             body: `func(...args: any[]) {
         console.log(args);
     }`,
@@ -159,6 +162,7 @@ protected protectedBar(val:number):void;
         });
         expect(res[1].classFunctions?.[1]).toEqual({
             name: 'foo',
+            scope: 'public',
             body: `foo = async (a: number, c: InterfaceAny): Promise<boolean> => {
         return a > c.a;
     }`,
@@ -169,6 +173,7 @@ protected protectedBar(val:number):void;
         });
         expect(res[1].classFunctions?.[5]).toEqual({
             name: 'bar',
+            scope: 'public',
             body: `bar() {
         super.foooo(this);
         this.protectedBar(this.d);

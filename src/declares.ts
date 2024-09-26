@@ -287,11 +287,7 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
     if (memberKind !== SyntaxKind.MethodDeclaration && memberKind !== SyntaxKind.PropertyDeclaration) {
         return;
     }
-    const scope = (member as any).getScope?.();
-
-    if (scope !== 'public') {
-        return;
-    }
+    const scope = (member as any).getScope?.() || 'public';
 
     if (memberKind === SyntaxKind.MethodDeclaration) {
         const method = member as MethodDeclaration;
@@ -302,6 +298,7 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
             body: method.getText(),
             isProp: false,
             isStatic,
+            scope,
             externalIdentifiers: searchExternalIdentifiers(method, undefined, memberNames),
             linesRange: [method.getStartLineNumber(), method.getEndLineNumber()]
         };
@@ -320,6 +317,7 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
             body: prop.getText(),
             isProp: true,
             isStatic,
+            scope,
             externalIdentifiers: searchExternalIdentifiers(prop.getInitializer(), undefined, memberNames),
             linesRange: [prop.getStartLineNumber(), prop.getEndLineNumber()]
         };
