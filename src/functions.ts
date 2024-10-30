@@ -1,8 +1,8 @@
-import { ExportedDeclarations, SyntaxKind, VariableDeclarationList, FunctionDeclaration } from "ts-morph";
+import { Node, SyntaxKind, VariableDeclarationList, FunctionDeclaration } from "ts-morph";
 import { ExportData, ExportType } from "./index.type";
 import { searchExternalIdentifiers } from "./deps";
 
-export function extractFunction(name: string, declaration: ExportedDeclarations): ExportData | undefined {
+export function extractFunction(name: string, declaration: Node): ExportData | undefined {
     const kind = declaration.getKind();
     if (kind === SyntaxKind.VariableDeclaration) {
         const variableDeclaration = declaration.asKind(SyntaxKind.VariableDeclaration);

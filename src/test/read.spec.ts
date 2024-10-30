@@ -1,8 +1,8 @@
-import { read, getCode } from '.';
+import { read, getCode } from '..';
 import path from 'path';
 
 function mockFile(p: string) {
-    return path.resolve(__dirname, p.endsWith('.ts') ? p : `${p}.ts`);
+    return path.resolve(__dirname, '..', p.endsWith('.ts') ? p : `${p}.ts`);
 }
 
 describe('read function files', () => {

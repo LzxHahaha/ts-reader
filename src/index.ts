@@ -1,4 +1,4 @@
-import { Project, ProjectOptions } from "ts-morph";
+import { Project, ProjectOptions, SyntaxKind } from "ts-morph";
 import { ExportData, ExportCode, Declare } from "./index.type";
 import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
@@ -101,7 +101,47 @@ export function getCode(data: ExportCode, options: MergeCodeOptions = {}): strin
     return `${importStatements}${localStatements}${codeStatements}`;
 }
 
-
 function formatPath(path: string) {
     return path.replace(/\\/g, '/');
+}
+
+/**
+ *
+ * @param code Source code
+ * @param position [line, col], line and column of the position, 1-based
+ * @param options
+ */
+export function getFunctionByPosition(code: string, position: [line: number, col: number], options?: ProjectOptions) {
+    const project = new Project(options);
+    const sourceFile = project.createSourceFile('temp.ts', code);
+
+    const lines = code.split('\n');
+    const line = Math.max(0, Math.min(lines.length, position[0] - 1));
+    const col = Math.max(0, Math.min(lines[line].length, position[1] - 1));
+    let pos = 0;
+    for (let i = 0; i < lines.length && i < line; i++) {
+        pos += lines[i].length + 1;
+    }
+    pos += col;
+
+    const node = sourceFile.getDescendantAtPos(pos);
+    if (!node) {
+        return undefined;
+    }
+
+    const functionNode = node.getFirstAncestorByKind(SyntaxKind.FunctionDeclaration)
+        || node.getFirstAncestorByKind(SyntaxKind.FunctionExpression)
+        || node.getFirstAncestorByKind(SyntaxKind.ArrowFunction)
+        || node.getFirstAncestorByKind(SyntaxKind.MethodDeclaration);
+
+    if (!functionNode) {
+        return undefined;
+    }
+
+    const classNode = node.getFirstAncestorByKind(SyntaxKind.ClassDeclaration);
+    if (classNode) {
+        return extractClass(classNode.getName() || "", classNode);
+    }
+
+    return extractFunction((functionNode as any).getName?.() || "", functionNode);
 }
