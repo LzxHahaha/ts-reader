@@ -4,13 +4,13 @@ export interface DependData {
     module: string;
 }
 
-export enum ExportType {
+export enum CodeType {
     Function,
     Class
 }
 
-export interface ExportData {
-    type: ExportType;
+export interface CodeMeta {
+    type: CodeType;
     name: string;
     body: string;
     externalIdentifiers: string[];
@@ -18,8 +18,8 @@ export interface ExportData {
     linesRange: [number, number];
 }
 
-export interface ExportCode {
-    type: ExportType;
+export interface CodeDetailData {
+    type: CodeType;
     name: string;
     code: string;
     classFunctions?: ClassFunction[];

@@ -80,7 +80,13 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
         if (kind === SyntaxKind.Identifier) {
             checkName = node.getText();
             const parentKind = node.getParent()?.getKind();
-            if (parentKind === SyntaxKind.PropertyAssignment) {
+            if (parentKind === SyntaxKind.PropertyAssignment
+                || parentKind === SyntaxKind.JsxAttribute
+                || parentKind === SyntaxKind.JsxClosingElement
+            ) {
+                return;
+            }
+            if ((parentKind === SyntaxKind.JsxOpeningElement || parentKind === SyntaxKind.JsxSelfClosingElement) && !/A-Z/.test(checkName[0])) {
                 return;
             }
         }

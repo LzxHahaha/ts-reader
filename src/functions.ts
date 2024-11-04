@@ -1,8 +1,8 @@
 import { Node, SyntaxKind, VariableDeclarationList, FunctionDeclaration } from "ts-morph";
-import { ExportData, ExportType } from "./index.type";
+import { CodeMeta, CodeType } from "./index.type";
 import { searchExternalIdentifiers } from "./deps";
 
-export function extractFunction(name: string, declaration: Node): ExportData | undefined {
+export function extractFunction(name: string, declaration: Node): CodeMeta | undefined {
     const kind = declaration.getKind();
     if (kind === SyntaxKind.VariableDeclaration) {
         const variableDeclaration = declaration.asKind(SyntaxKind.VariableDeclaration);
@@ -10,7 +10,7 @@ export function extractFunction(name: string, declaration: Node): ExportData | u
         if (!initializer) {
             return;
         }
-        let body = declaration.getText().trim();
+        let body = declaration.getFullText().trim();
         const parent = variableDeclaration?.getParent();
         if (parent?.getKind() === SyntaxKind.VariableDeclarationList) {
             const variableDeclarationList = parent as VariableDeclarationList;
@@ -20,7 +20,7 @@ export function extractFunction(name: string, declaration: Node): ExportData | u
             }
         }
         return {
-            type: ExportType.Function,
+            type: CodeType.Function,
             name,
             body: body.replaceAll(';;', ';'),
             externalIdentifiers: searchExternalIdentifiers(initializer),
@@ -29,12 +29,12 @@ export function extractFunction(name: string, declaration: Node): ExportData | u
     }
     if (kind === SyntaxKind.FunctionDeclaration || kind === SyntaxKind.ArrowFunction) {
         const externalIdentifiers = searchExternalIdentifiers(declaration as FunctionDeclaration);
-        let body = declaration.getText();
+        let body = declaration.getFullText();
         if (kind === SyntaxKind.ArrowFunction && name === 'default' && !body.startsWith('export default ')) {
             body = `export default ${body}`;
         }
         return {
-            type: ExportType.Function,
+            type: CodeType.Function,
             name,
             body,
             externalIdentifiers,
