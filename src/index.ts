@@ -1,5 +1,5 @@
 import { Project, ProjectOptions, SourceFile, SyntaxKind, Node } from "ts-morph";
-import { CodeMeta, CodeDetailData, Declare, DependData } from "./index.type";
+import { CodeMeta, CodeDetailData, Declare, DependData, CodeType } from "./index.type";
 import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
 import { extractClass } from "./class";
@@ -129,10 +129,20 @@ function getFunctionInSourceFile(sourceFile: SourceFile, position: FilePosition)
     if (!codeMeta) {
         return undefined;
     }
+    let targetMeta = codeMeta;
+    if (classNode) {
+        const member = codeMeta.classFunctions?.find(el => el.linesRange[0] <= position[0] && position[0] <= el.linesRange[1]);
+        if (member) {
+            targetMeta = {
+                ...member,
+                type: CodeType.ClassMember
+            }
+        }
+    }
     const { importDeclarations, localDeclarations } = getFileDeclarations(sourceFile);
     return {
         details: getCodeDetails(codeMeta, importDeclarations, localDeclarations),
-        targetMeta: codeMeta
+        targetMeta
     };
 }
 

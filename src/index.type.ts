@@ -6,7 +6,8 @@ export interface DependData {
 
 export enum CodeType {
     Function,
-    Class
+    Class,
+    ClassMember
 }
 
 export interface CodeMeta {
