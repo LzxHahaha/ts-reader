@@ -125,20 +125,37 @@ function getFunctionInSourceFile(sourceFile: SourceFile, position: FilePosition)
     }
 
     const classNode = node.getFirstAncestorByKind(SyntaxKind.ClassDeclaration);
-    const codeMeta = classNode ? extractClass(classNode.getName() || "", classNode) : extractFunction((functionNode as any).getName?.() || "", functionNode);
-    if (!codeMeta) {
+
+    let codeMeta: CodeMeta | undefined;
+    let targetMeta: CodeMeta | undefined;
+    if (classNode) {
+        codeMeta = extractClass(classNode.getName() || "", classNode);
+        const member = codeMeta?.classFunctions?.find(el => el.linesRange[0] <= position[0] && position[0] <= el.linesRange[1]);
+        if (!member) {
+            return undefined;
+        }
+        targetMeta = {
+            ...member,
+            type: CodeType.ClassMember
+        }
+    } else {
+        let name = '';
+        if (functionNode.getKind() === SyntaxKind.ArrowFunction) {
+            const parent = functionNode.getParent();
+            if (parent.getKind() === SyntaxKind.VariableDeclaration) {
+                name = parent.asKind(SyntaxKind.VariableDeclaration)!.getName();
+            }
+        } else {
+            name = (functionNode as any).getName?.() || "";
+        }
+        codeMeta = extractFunction(name, functionNode);
+        targetMeta = codeMeta;
+    }
+
+    if (!codeMeta || !targetMeta) {
         return undefined;
     }
-    let targetMeta = codeMeta;
-    if (classNode) {
-        const member = codeMeta.classFunctions?.find(el => el.linesRange[0] <= position[0] && position[0] <= el.linesRange[1]);
-        if (member) {
-            targetMeta = {
-                ...member,
-                type: CodeType.ClassMember
-            }
-        }
-    }
+
     const { importDeclarations, localDeclarations } = getFileDeclarations(sourceFile);
     return {
         details: getCodeDetails(codeMeta, importDeclarations, localDeclarations),

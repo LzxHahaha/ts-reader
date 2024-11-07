@@ -27,7 +27,7 @@ describe('getFunctionByPosition', () => {
     it('class member', () => {
         const code = read('./mock/mockClass');
         const res = getFunctionByPosition(code, [30, 24]);
-        expect(res?.targetMeta?.type).toBe(CodeType.Class);
+        expect(res?.targetMeta?.type).toBe(CodeType.ClassMember);
     });
 
     it('interface function define', () => {
