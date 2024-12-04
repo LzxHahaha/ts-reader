@@ -218,7 +218,10 @@ function getPropDeclaretion(prop: PropertyDeclaration) {
     return `${prop.getName()}${marker}:${formatType(prop.getType().getText())};`;
 }
 
-export function getClassStructure(classDeclaration: ClassDeclaration, scanFunc = false): ClassStructure | undefined {
+export function getClassStructure(classDeclaration: ClassDeclaration, options?: {
+    scanFunc?: boolean;
+    skipDependencies?: boolean;
+}): ClassStructure | undefined {
     const className = classDeclaration.getName() || '';
 
     const functions: ClassFunction[] = [];
@@ -257,7 +260,7 @@ export function getClassStructure(classDeclaration: ClassDeclaration, scanFunc =
         if (memberKind === SyntaxKind.Constructor || memberKind === SyntaxKind.ClassStaticBlockDeclaration) {
             continue;
         }
-        const funcData = scanFunc && getClassMemberFunction(member, memberNames);
+        const funcData = options?.scanFunc && getClassMemberFunction(member, memberNames);
         if (funcData) {
             functions.push(funcData);
         }
@@ -282,7 +285,7 @@ export function getClassStructure(classDeclaration: ClassDeclaration, scanFunc =
     }
 }
 
-function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<string>): ClassFunction | undefined {
+function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<string>, skipDependencies?: boolean): ClassFunction | undefined {
     const memberKind = member.getKind();
     if (memberKind !== SyntaxKind.MethodDeclaration && memberKind !== SyntaxKind.PropertyDeclaration) {
         return;
@@ -299,7 +302,7 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
             isProp: false,
             isStatic,
             scope,
-            externalIdentifiers: searchExternalIdentifiers(method, undefined, memberNames),
+            externalIdentifiers: skipDependencies ? [] : searchExternalIdentifiers(method, undefined, memberNames),
             linesRange: [method.getStartLineNumber(), method.getEndLineNumber()]
         };
     } else if (memberKind === SyntaxKind.PropertyDeclaration) {
@@ -318,7 +321,7 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
             isProp: true,
             isStatic,
             scope,
-            externalIdentifiers: searchExternalIdentifiers(prop.getInitializer(), undefined, memberNames),
+            externalIdentifiers: skipDependencies ? [] : searchExternalIdentifiers(prop.getInitializer(), undefined, memberNames),
             linesRange: [prop.getStartLineNumber(), prop.getEndLineNumber()]
         };
     }

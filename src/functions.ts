@@ -1,8 +1,8 @@
 import { Node, SyntaxKind, VariableDeclarationList, FunctionDeclaration } from "ts-morph";
-import { CodeMeta, CodeType } from "./index.type";
+import { CodeMeta, CodeType, ExtractOptions } from "./index.type";
 import { searchExternalIdentifiers } from "./deps";
 
-export function extractFunction(name: string, declaration: Node): CodeMeta | undefined {
+export function extractFunction(name: string, declaration: Node, options?: ExtractOptions): CodeMeta | undefined {
     const kind = declaration.getKind();
     if (kind === SyntaxKind.VariableDeclaration) {
         const variableDeclaration = declaration.asKind(SyntaxKind.VariableDeclaration);
@@ -23,12 +23,12 @@ export function extractFunction(name: string, declaration: Node): CodeMeta | und
             type: CodeType.Function,
             name,
             body: body.replaceAll(';;', ';'),
-            externalIdentifiers: searchExternalIdentifiers(initializer),
+            externalIdentifiers: options?.skipDependencies ? [] : searchExternalIdentifiers(initializer),
             linesRange: [declaration.getStartLineNumber(), declaration.getEndLineNumber()]
         }
     }
     if (kind === SyntaxKind.FunctionDeclaration || kind === SyntaxKind.ArrowFunction) {
-        const externalIdentifiers = searchExternalIdentifiers(declaration as FunctionDeclaration);
+        const externalIdentifiers = options?.skipDependencies ? [] : searchExternalIdentifiers(declaration as FunctionDeclaration);
         let body = declaration.getFullText();
         if (kind === SyntaxKind.ArrowFunction && name === 'default' && !body.startsWith('export default ')) {
             body = `export default ${body}`;

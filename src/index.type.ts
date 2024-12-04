@@ -4,10 +4,21 @@ export interface DependData {
     module: string;
 }
 
+export interface ExtractOptions {
+    skipDependencies?: boolean;
+}
+
 export enum CodeType {
     Function,
     Class,
     ClassMember
+}
+
+export interface CodeBaseInfo {
+    type: CodeType;
+    name: string;
+    linesRange: [number, number];
+    functions?: { name: string, linesRange: [number, number] }[];
 }
 
 export interface CodeMeta {

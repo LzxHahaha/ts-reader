@@ -1,5 +1,5 @@
 import { Project, ProjectOptions, SourceFile, SyntaxKind, Node } from "ts-morph";
-import { CodeMeta, CodeDetailData, Declare, DependData, CodeType } from "./index.type";
+import { CodeMeta, CodeDetailData, Declare, DependData, CodeType, CodeBaseInfo } from "./index.type";
 import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
 import { extractClass } from "./class";
@@ -34,6 +34,47 @@ export async function read(fileName: string, options?: ProjectOptions): Promise<
     }
 
     return res;
+}
+
+export async function getExportedList(fileName: string, options?: ProjectOptions) {
+    const project = new Project({
+        skipFileDependencyResolution: true,
+        ...options
+    });
+
+    const formatFileName = formatPath(fileName);
+    const sourceFile = project.addSourceFileAtPath(formatFileName);
+
+    const exportedDeclarations = sourceFile.getExportedDeclarations();
+    const result: CodeBaseInfo[] = [];
+    exportedDeclarations.forEach((declarations, name) => {
+        declarations.forEach((declaration) => {
+            const sourcePath = formatPath(declaration.getSourceFile().getFilePath());
+            if (sourcePath !== formatFileName) {
+                return;
+            }
+            const data = extractFunction(name, declaration) || extractClass(name, declaration);
+            if (!data) {
+                return;
+            }
+            if (data.type === CodeType.Function) {
+                result.push({
+                    type: CodeType.Function,
+                    name,
+                    linesRange: data.linesRange
+                });
+            } else if (data.type === CodeType.Class) {
+                result.push({
+                    type: CodeType.Class,
+                    name,
+                    linesRange: data.linesRange,
+                    functions: data.classFunctions?.map(el => ({ name: el.name, linesRange: el.linesRange })) || []
+                });
+            }
+        });
+    });
+    return result;
+
 }
 
 export interface MergeCodeOptions {
@@ -179,7 +220,7 @@ function getCodeDetails(codeData: CodeMeta, importDeclarations: Record<string, D
 
     let localDeclares = '';
     const importDeclares: Record<string, Declare[]> = {};
-    for (const externalIdentifier of externalIdentifiers) {
+    for (const externalIdentifier of externalIdentifiers || []) {
         const dep = importDeclarations[externalIdentifier] || localDeclarations[externalIdentifier];
         if (!dep) {
             console.warn(`Cannot find declaration for '${externalIdentifier}' in '${name}'`);
