@@ -3,6 +3,7 @@ import { CodeMeta, CodeDetailData, Declare, DependData, CodeType, CodeBaseInfo }
 import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
 import { extractClass } from "./class";
+import { extractType } from "./type";
 
 export * from './index.type';
 
@@ -114,32 +115,16 @@ function formatPath(path: string) {
 
 type FilePosition = [line: number, col: number];
 
-export function getFunctionInFile(filePath: string, position: FilePosition, options?: ProjectOptions) {
-    const project = new Project(options);
+export function getCodeInFile(filePath: string, position: FilePosition, options?: ProjectOptions): { details: CodeDetailData, targetMeta: CodeMeta } | undefined {
+    const project = new Project({
+        ...options,
+    });
     const formatFileName = formatPath(filePath);
     const sourceFile = project.addSourceFileAtPath(formatFileName);
-    return getFunctionInSourceFile(sourceFile, position);
+    return getCodeInSourceFile(sourceFile, position);
 }
 
-/**
- *
- * @param code Source code
- * @param position [line, col], line and column of the position, 1-based
- * @param options
- */
-export function getFunctionByPosition(code: string, position: FilePosition, options?: {
-    tempFileName?: string;
-} & ProjectOptions): {
-    details: CodeDetailData;
-    targetMeta: CodeMeta;
-} | undefined {
-    const project = new Project(options);
-    const sourceFile = project.createSourceFile(options?.tempFileName || 'temp.ts', code);
-
-    return getFunctionInSourceFile(sourceFile, position);
-}
-
-function getFunctionInSourceFile(sourceFile: SourceFile, position: FilePosition) {
+function getCodeInSourceFile(sourceFile: SourceFile, position: FilePosition): { details: CodeDetailData, targetMeta: CodeMeta } | undefined {
     const code = sourceFile.getText();
     const lines = code.split('\n');
     // transform 1-based to 0-based
@@ -156,6 +141,31 @@ function getFunctionInSourceFile(sourceFile: SourceFile, position: FilePosition)
         return undefined;
     }
 
+    const type = getTypeByNode(sourceFile, node);
+    if (type) {
+        return type;
+    }
+    return getFunctionByNode(sourceFile, node, position);
+}
+
+function getTypeByNode(sourceFile: SourceFile, node: Node): { details: CodeDetailData, targetMeta: CodeMeta } | undefined {
+    const typeNode = node.getFirstAncestorByKind(SyntaxKind.TypeAliasDeclaration)
+        || node.getFirstAncestorByKind(SyntaxKind.InterfaceDeclaration);
+    if (!typeNode) {
+        return undefined;
+    }
+    const { importDeclarations, localDeclarations } = getFileDeclarations(sourceFile);
+    const targetMeta = extractType(typeNode.getName(), typeNode);
+    if (!targetMeta) {
+        return undefined;
+    }
+    return {
+        details: getCodeDetails(targetMeta, importDeclarations, localDeclarations),
+        targetMeta
+    }
+}
+
+function getFunctionByNode(sourceFile: SourceFile, node: Node, position: FilePosition): { details: CodeDetailData, targetMeta: CodeMeta } | undefined {
     const functionNode = node.getFirstAncestorByKind(SyntaxKind.FunctionDeclaration)
         || node.getFirstAncestorByKind(SyntaxKind.FunctionExpression)
         || node.getFirstAncestorByKind(SyntaxKind.ArrowFunction)
@@ -167,11 +177,11 @@ function getFunctionInSourceFile(sourceFile: SourceFile, position: FilePosition)
 
     const classNode = node.getFirstAncestorByKind(SyntaxKind.ClassDeclaration);
 
-    let codeMeta: CodeMeta | undefined;
+    let detailsMeta: CodeMeta | undefined;
     let targetMeta: CodeMeta | undefined;
     if (classNode) {
-        codeMeta = extractClass(classNode.getName() || "", classNode);
-        const member = codeMeta?.classFunctions?.find(el => el.linesRange[0] <= position[0] && position[0] <= el.linesRange[1]);
+        detailsMeta = extractClass(classNode.getName() || "", classNode);
+        const member = detailsMeta?.classFunctions?.find(el => el.linesRange[0] <= position[0] && position[0] <= el.linesRange[1]);
         if (!member) {
             return undefined;
         }
@@ -189,17 +199,17 @@ function getFunctionInSourceFile(sourceFile: SourceFile, position: FilePosition)
         } else {
             name = (functionNode as any).getName?.() || "";
         }
-        codeMeta = extractFunction(name, functionNode);
-        targetMeta = codeMeta;
+        detailsMeta = extractFunction(name, functionNode);
+        targetMeta = detailsMeta;
     }
 
-    if (!codeMeta || !targetMeta) {
+    if (!detailsMeta || !targetMeta) {
         return undefined;
     }
 
     const { importDeclarations, localDeclarations } = getFileDeclarations(sourceFile);
     return {
-        details: getCodeDetails(codeMeta, importDeclarations, localDeclarations),
+        details: getCodeDetails(detailsMeta, importDeclarations, localDeclarations),
         targetMeta
     };
 }
@@ -243,7 +253,7 @@ function getCodeDetails(codeData: CodeMeta, importDeclarations: Record<string, D
         name,
         importDeclares,
         localDeclares,
-        code: body,
+        code: body.trim(),
         classFunctions,
         linesRange
     };

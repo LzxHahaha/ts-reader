@@ -17,8 +17,6 @@ interface InterfaceAny {}
 }
 declare const innerVar:{ a: { b: number; }; c: number; d: ({ aa: number; bb: number; } | { aa: number; bb?: undefined; })[]; };
 declare function innerFunc():string;
-
-
 export function funcOnly(input: InterfaceA): InterfaceAny {
     const { func } = input;
     func(innerVar.a.b);
@@ -94,8 +92,6 @@ export default  () => variableA`);
         expect(getCode(res[0])).toBe(`declare module './mockTypes' {
 interface InterfaceT {v:T;}
 }
-
-
 export function Tmpl<T>(v: T): InterfaceT<T> {
     return { v };
 }`);

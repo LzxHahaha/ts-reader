@@ -11,7 +11,8 @@ export interface ExtractOptions {
 export enum CodeType {
     Function,
     Class,
-    ClassMember
+    ClassMember,
+    TypeDefine,
 }
 
 export interface CodeBaseInfo {

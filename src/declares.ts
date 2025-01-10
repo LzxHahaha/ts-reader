@@ -260,7 +260,7 @@ export function getClassStructure(classDeclaration: ClassDeclaration, options?: 
         if (memberKind === SyntaxKind.Constructor || memberKind === SyntaxKind.ClassStaticBlockDeclaration) {
             continue;
         }
-        const funcData = options?.scanFunc && getClassMemberFunction(member, memberNames);
+        const funcData = options?.scanFunc && getClassMemberFunction(member, memberNames, options?.skipDependencies);
         if (funcData) {
             functions.push(funcData);
         }

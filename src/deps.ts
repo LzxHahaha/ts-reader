@@ -1,5 +1,10 @@
-import { ClassDeclaration, MethodDeclaration, Node, PropertyAccessExpression, SyntaxKind, VariableDeclaration } from "ts-morph";
+import { ClassDeclaration, InterfaceDeclaration, MethodDeclaration, Node, PropertyAccessExpression, SyntaxKind, VariableDeclaration, TypeAliasDeclaration, FunctionDeclaration, PropertyAssignment, PropertySignature } from "ts-morph";
 import { isTsSymbol } from "./utils/global";
+
+const SkipType = new Set([
+    SyntaxKind.JsxClosingElement,
+    SyntaxKind.QualifiedName
+]);
 
 export function searchExternalIdentifiers(declaration: Node | undefined, res = new Set<string>(), parentScopeVar = new Set<string>()): string[] {
     if (!declaration) {
@@ -8,9 +13,9 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
     const scopeVariableNames = new Set<string>(parentScopeVar);
     const declarartionKind = declaration.getKind();
     // add current function name
-    if (declarartionKind === SyntaxKind.FunctionDeclaration) {
-        const name = (declaration as any).getName();
-        scopeVariableNames.add(name);
+    if (declarartionKind === SyntaxKind.FunctionDeclaration || declarartionKind === SyntaxKind.InterfaceDeclaration || declarartionKind === SyntaxKind.TypeAliasDeclaration) {
+        const name = (declaration as FunctionDeclaration | InterfaceDeclaration | TypeAliasDeclaration).getName();
+        name && scopeVariableNames.add(name);
     }
     // add member names
     if (declarartionKind === SyntaxKind.ClassDeclaration) {
@@ -18,9 +23,10 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
         members.size && members.forEach(name => scopeVariableNames.add(name));
     }
 
+    const debugText = declaration.getText();
     declaration.forEachDescendant((node, traversal) => {
         const kind = node.getKind();
-        if (kind === SyntaxKind.QualifiedName) {
+        if (SkipType.has(kind)) {
             traversal.skip();
             return;
         }
@@ -29,7 +35,7 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
         const debugText = node.getText();
 
         if (kind === SyntaxKind.VariableDeclaration) {
-            const nameNode = (node as VariableDeclaration).getNameNode();
+            const nameNode = (node as VariableDeclaration | InterfaceDeclaration | TypeAliasDeclaration).getNameNode();
             if (nameNode.getKind() === SyntaxKind.Identifier) {
                 const nodeName = nameNode.getText();
                 scopeVariableNames.add(nodeName);
@@ -77,11 +83,15 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
             traversal.skip();
         }
 
+        if (kind === SyntaxKind.PropertyAssignment || kind === SyntaxKind.PropertySignature) {
+            const name = (node as PropertyAssignment | PropertySignature).getName();
+            scopeVariableNames.add(name);
+        }
+
         if (kind === SyntaxKind.Identifier) {
             checkName = node.getText();
             const parentKind = node.getParent()?.getKind();
-            if (parentKind === SyntaxKind.PropertyAssignment
-                || parentKind === SyntaxKind.JsxAttribute
+            if (parentKind === SyntaxKind.JsxAttribute
                 || parentKind === SyntaxKind.JsxClosingElement
             ) {
                 return;

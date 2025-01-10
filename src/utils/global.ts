@@ -70,6 +70,8 @@ let tsSymbols = new Set([
     "ThisType",
     "OmitThisParameter",
     "ThisParameterType",
+    "null",
+    "undefined"
 ]);
 
 export function isTsSymbol(symbol: string): boolean {
