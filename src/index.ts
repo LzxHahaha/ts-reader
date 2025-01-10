@@ -1,4 +1,4 @@
-import { Project, ProjectOptions, SourceFile, SyntaxKind, Node } from "ts-morph";
+import { Project, ProjectOptions, SourceFile, SyntaxKind, Node, Type } from "ts-morph";
 import { CodeMeta, CodeDetailData, Declare, DependData, CodeType, CodeBaseInfo } from "./index.type";
 import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
@@ -37,45 +37,122 @@ export async function read(fileName: string, options?: ProjectOptions): Promise<
     return res;
 }
 
-export async function getExportedList(fileName: string, options?: ProjectOptions) {
+export async function getDeclartionList(fileName: string, options?: {
+    exportedOnly?: boolean;
+} & ProjectOptions): Promise<CodeBaseInfo[]> {
     const project = new Project({
+        skipAddingFilesFromTsConfig: true,
         skipFileDependencyResolution: true,
+        skipLoadingLibFiles: true,
         ...options
     });
 
     const formatFileName = formatPath(fileName);
     const sourceFile = project.addSourceFileAtPath(formatFileName);
 
-    const exportedDeclarations = sourceFile.getExportedDeclarations();
     const result: CodeBaseInfo[] = [];
-    exportedDeclarations.forEach((declarations, name) => {
-        declarations.forEach((declaration) => {
-            const sourcePath = formatPath(declaration.getSourceFile().getFilePath());
-            if (sourcePath !== formatFileName) {
-                return;
-            }
-            const data = extractFunction(name, declaration) || extractClass(name, declaration);
-            if (!data) {
-                return;
-            }
-            if (data.type === CodeType.Function) {
-                result.push({
-                    type: CodeType.Function,
-                    name,
-                    linesRange: data.linesRange
-                });
-            } else if (data.type === CodeType.Class) {
-                result.push({
-                    type: CodeType.Class,
-                    name,
-                    linesRange: data.linesRange,
-                    functions: data.classFunctions?.map(el => ({ name: el.name, linesRange: el.linesRange })) || []
-                });
-            }
+
+    const functions = sourceFile.getFunctions();
+    functions.forEach((func) => {
+        if (options?.exportedOnly && !func.isExported()) {
+            return;
+        }
+        result.push({
+            type: CodeType.Function,
+            name: func.getName() || "default",
+            linesRange: [func.getStartLineNumber(), func.getEndLineNumber()]
         });
     });
-    return result;
 
+    const classes = sourceFile.getClasses();
+    classes.forEach((cls) => {
+        if (options?.exportedOnly && !cls.isExported()) {
+            return;
+        }
+        result.push({
+            type: CodeType.Class,
+            name: cls.getName() || "default",
+            linesRange: [cls.getStartLineNumber(), cls.getEndLineNumber()],
+            functions: cls.getMethods().map(el => ({ name: el.getName(), linesRange: [el.getStartLineNumber(), el.getEndLineNumber()] }))
+        });
+    });
+
+    const interfaces = sourceFile.getInterfaces();
+    interfaces.forEach((inter) => {
+        if (options?.exportedOnly && !inter.isExported()) {
+            return;
+        }
+        result.push({
+            type: CodeType.TypeDefine,
+            name: inter.getName() || "default",
+            linesRange: [inter.getStartLineNumber(), inter.getEndLineNumber()]
+        });
+    });
+
+    const types = sourceFile.getTypeAliases();
+    types.forEach((type) => {
+        if (options?.exportedOnly && !type.isExported()) {
+            return;
+        }
+        result.push({
+            type: CodeType.TypeDefine,
+            name: type.getName() || "default",
+            linesRange: [type.getStartLineNumber(), type.getEndLineNumber()]
+        });
+    });
+
+    const enums = sourceFile.getEnums();
+    enums.forEach((en) => {
+        if (options?.exportedOnly && !en.isExported()) {
+            return;
+        }
+        result.push({
+            type: CodeType.Enum,
+            name: en.getName() || "default",
+            linesRange: [en.getStartLineNumber(), en.getEndLineNumber()]
+        });
+    });
+
+    const vars = sourceFile.getVariableDeclarations();
+    vars.forEach((v) => {
+        if (options?.exportedOnly && !v.isExported()) {
+            return;
+        }
+        const type = checkVarType(v.getType());
+        type != null && result.push({
+            type,
+            name: v.getName() || "default",
+            linesRange: [v.getStartLineNumber(), v.getEndLineNumber()]
+        });
+    });
+
+    const defaultExport = sourceFile.getExportedDeclarations().get("default")?.[0];
+    if (defaultExport) {
+        const type = checkVarType(defaultExport.getType());
+        type != null && result.push({
+            type,
+            name:  "default",
+            linesRange: [defaultExport.getStartLineNumber(), defaultExport.getEndLineNumber()]
+        });
+    }
+
+    return result;
+}
+
+function checkVarType(type?: Type<any>): CodeType | undefined {
+    if (!type) {
+        return;
+    }
+    if (type.getConstructSignatures().length > 0) {
+        return CodeType.Class;
+    } else if (type.getCallSignatures().length > 0) {
+        return CodeType.Function;
+    } else if (type.isInterface()) {
+        return CodeType.TypeDefine;
+    }
+    if (type.getAliasSymbol()) {
+        return CodeType.TypeDefine;
+    }
 }
 
 export interface MergeCodeOptions {

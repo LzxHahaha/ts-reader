@@ -1,8 +1,9 @@
 // @ts-nocheck
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 export const MockJsx = () => {
     const [count, setCount] = useState(0);
+    const divRef = useRef<HTMLDivElement>(null);
     return (
         <div id="1">
             <h1>MockJsx: {count}</h1>

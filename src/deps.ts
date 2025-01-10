@@ -116,9 +116,13 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
         }
 
         if (needDeepCheck && !res.has(checkName)) {
-            res.add(checkName);
             const depDeclaration = (node as Identifier).getSymbol()?.getDeclarations() ?? [];
             for (const decl of depDeclaration) {
+                const filepath = decl.getSourceFile()?.getFilePath();
+                if (!filepath || filepath.includes('node_modules') || filepath.includes('libs.')) {
+                    return;
+                }
+                res.add(checkName);
                 searchExternalIdentifiers(decl, res);
             }
         }

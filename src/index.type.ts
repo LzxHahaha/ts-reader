@@ -13,6 +13,8 @@ export enum CodeType {
     Class,
     ClassMember,
     TypeDefine,
+    Enum,
+    Variable
 }
 
 export interface CodeBaseInfo {
