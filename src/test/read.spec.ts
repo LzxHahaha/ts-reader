@@ -187,6 +187,7 @@ protected protectedBar(val:number):void;
         expect(getCode(res[1])).toBe(`declare module './mockTypes' {
 interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;}
 interface InterfaceAny {}
+const variableA:number;
 }
 declare class A {
 constructor(public e: number, private f?: number, g?: boolean);

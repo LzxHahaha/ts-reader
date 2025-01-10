@@ -9,7 +9,6 @@ describe('getCodeInFile', () => {
     it('interface in file', () => {
         const res = getCodeInFile(path.resolve(__dirname, '..', './mock/mockTypes.ts'), [8, 21]);
         expect(res?.targetMeta?.type).toBe(CodeType.TypeDefine);
-        // TODO: should have interfaceAny
-        expect(res?.targetMeta?.externalIdentifiers).toEqual(['InterfaceA']);
+        expect(res?.targetMeta?.externalIdentifiers).toEqual(['InterfaceA', 'InterfaceAny']);
     });
 });

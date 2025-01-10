@@ -1,4 +1,4 @@
-import { ClassDeclaration, InterfaceDeclaration, MethodDeclaration, Node, PropertyAccessExpression, SyntaxKind, VariableDeclaration, TypeAliasDeclaration, FunctionDeclaration, PropertyAssignment, PropertySignature } from "ts-morph";
+import { ClassDeclaration, InterfaceDeclaration, MethodDeclaration, Node, PropertyAccessExpression, SyntaxKind, VariableDeclaration, TypeAliasDeclaration, FunctionDeclaration, PropertyAssignment, PropertySignature, JsxAttribute, Identifier, MethodSignature } from "ts-morph";
 import { isTsSymbol } from "./utils/global";
 
 const SkipType = new Set([
@@ -83,26 +83,44 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
             traversal.skip();
         }
 
-        if (kind === SyntaxKind.PropertyAssignment || kind === SyntaxKind.PropertySignature) {
-            const name = (node as PropertyAssignment | PropertySignature).getName();
+        if (kind === SyntaxKind.PropertyAssignment || kind === SyntaxKind.PropertySignature || kind === SyntaxKind.MethodSignature) {
+            const name = (node as PropertyAssignment | PropertySignature | MethodSignature).getName();
             scopeVariableNames.add(name);
         }
+        if (kind === SyntaxKind.JsxAttribute) {
+            checkName = (node as JsxAttribute).getNameNode().getText();
+            traversal.skip();
+            searchExternalIdentifiers(node, res, new Set([...scopeVariableNames, checkName]));
+            return;
+        }
 
+        let needDeepCheck = false;
         if (kind === SyntaxKind.Identifier) {
-            checkName = node.getText();
             const parentKind = node.getParent()?.getKind();
-            if (parentKind === SyntaxKind.JsxAttribute
-                || parentKind === SyntaxKind.JsxClosingElement
-            ) {
+            if ( parentKind === SyntaxKind.JsxClosingElement) {
                 return;
             }
             if ((parentKind === SyntaxKind.JsxOpeningElement || parentKind === SyntaxKind.JsxSelfClosingElement) && !/A-Z/.test(checkName[0])) {
                 return;
             }
+            checkName = node.getText();
+            const type = node.getType();
+            const symbol = type?.getSymbol();
+            if (symbol && !scopeVariableNames.has(checkName) && !isTsSymbol(checkName)) {
+                needDeepCheck = true;
+            }
         }
 
         if (!checkName || scopeVariableNames.has(checkName) || isTsSymbol(checkName)) {
             return;
+        }
+
+        if (needDeepCheck && !res.has(checkName)) {
+            res.add(checkName);
+            const depDeclaration = (node as Identifier).getSymbol()?.getDeclarations() ?? [];
+            for (const decl of depDeclaration) {
+                searchExternalIdentifiers(decl, res);
+            }
         }
 
         res.add(checkName);
