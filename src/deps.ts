@@ -1,4 +1,4 @@
-import { ClassDeclaration, InterfaceDeclaration, MethodDeclaration, Node, PropertyAccessExpression, SyntaxKind, VariableDeclaration, TypeAliasDeclaration, FunctionDeclaration, PropertyAssignment, PropertySignature, JsxAttribute, Identifier, MethodSignature } from "ts-morph";
+import { ClassDeclaration, InterfaceDeclaration, MethodDeclaration, Node, PropertyAccessExpression, SyntaxKind, VariableDeclaration, TypeAliasDeclaration, FunctionDeclaration, PropertyAssignment, PropertySignature, JsxAttribute, Identifier, MethodSignature, TypeReferenceNode } from "ts-morph";
 import { isTsSymbol } from "./utils/global";
 
 const SkipType = new Set([
@@ -12,8 +12,12 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
     }
     const scopeVariableNames = new Set<string>(parentScopeVar);
     const declarartionKind = declaration.getKind();
+    if (declarartionKind === SyntaxKind.TypeAliasDeclaration || declarartionKind === SyntaxKind.InterfaceDeclaration) {
+        return searchTypeReference(declaration as TypeAliasDeclaration | InterfaceDeclaration, res);
+    }
+
     // add current function name
-    if (declarartionKind === SyntaxKind.FunctionDeclaration || declarartionKind === SyntaxKind.InterfaceDeclaration || declarartionKind === SyntaxKind.TypeAliasDeclaration) {
+    if (declarartionKind === SyntaxKind.FunctionDeclaration) {
         const name = (declaration as FunctionDeclaration | InterfaceDeclaration | TypeAliasDeclaration).getName();
         name && scopeVariableNames.add(name);
     }
@@ -33,6 +37,12 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
 
         let checkName = '';
         const debugText = node.getText();
+
+        if (kind === SyntaxKind.TypeAliasDeclaration || kind === SyntaxKind.InterfaceDeclaration) {
+            traversal.skip();
+            searchTypeReference(node as TypeAliasDeclaration | InterfaceDeclaration, res);
+            return;
+        }
 
         if (kind === SyntaxKind.VariableDeclaration) {
             const nameNode = (node as VariableDeclaration | InterfaceDeclaration | TypeAliasDeclaration).getNameNode();
@@ -118,9 +128,8 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
         if (needDeepCheck && !res.has(checkName)) {
             const depDeclaration = (node as Identifier).getSymbol()?.getDeclarations() ?? [];
             for (const decl of depDeclaration) {
-                const filepath = decl.getSourceFile()?.getFilePath();
-                if (!filepath || filepath.includes('node_modules') || filepath.includes('libs.')) {
-                    return;
+                if (!isValidDeclaration(decl)) {
+                    continue;
                 }
                 res.add(checkName);
                 searchExternalIdentifiers(decl, res);
@@ -130,6 +139,45 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
         res.add(checkName);
     });
     return Array.from(res);
+}
+
+function searchTypeReference(node: TypeAliasDeclaration | InterfaceDeclaration, res = new Set<string>()) {
+    const name = node.getName();
+    const scopeVariableNames = new Set<string>([name]);
+    const typeParams = node.getTypeParameters();
+    typeParams.forEach(param => {
+        scopeVariableNames.add(param.getName());
+    });
+    node.forEachDescendant((node, traversal) => {
+        const kind = node.getKind();
+        if (kind !== SyntaxKind.TypeReference) {
+            return;
+        }
+        const debugText = node.getText();
+        const typeName = node.getType().getSymbol()?.getName();
+        if (!typeName || scopeVariableNames.has(typeName) || isTsSymbol(typeName)) {
+            return;
+        }
+        const decl = (node as TypeReferenceNode).getType().getSymbol()?.getDeclarations();
+        if (decl?.[0] && isValidDeclaration(decl[0])) {
+            traversal.skip();
+            const debugText = decl[0].getText();
+            res.add(typeName);
+            searchExternalIdentifiers(decl[0], res);
+        }
+    });
+    return Array.from(res);
+}
+
+function isValidDeclaration(node: Node): boolean {
+    if (!node) {
+        return false;
+    }
+    const filepath = node.getSourceFile()?.getFilePath();
+    if (!filepath || filepath.includes('node_modules') || filepath.includes('libs.')) {
+        return false;
+    }
+    return true;
 }
 
 export function getClassMemberNames(declaration: ClassDeclaration): Set<string> {
