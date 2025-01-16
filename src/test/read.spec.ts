@@ -11,7 +11,7 @@ describe('read function files', () => {
         expect(res.length).toBe(2);
         expect(res[0].name).toBe('funcOnly');
         expect(getCode(res[0])).toBe(`declare module './mockTypes' {
-interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;}
+interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;t:InterfaceT<string>;}
 interface InterfaceAny {}
  enum EnumA {A='1',B='2'}
 }
@@ -104,7 +104,7 @@ describe('read class files', () => {
         expect(res.length).toBe(2);
         expect(res[0].name).toBe('A');
         expect(getCode(res[0])).toBe(`declare module './mockTypes' {
-interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;}
+interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;t:InterfaceT<string>;}
 interface InterfaceAny {}
 const variableA:number;
 }
@@ -185,7 +185,7 @@ protected protectedBar(val:number):void;
         });
 
         expect(getCode(res[1])).toBe(`declare module './mockTypes' {
-interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;}
+interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;t:InterfaceT<string>;}
 interface InterfaceAny {}
 const variableA:number;
 }
@@ -231,7 +231,7 @@ v2?:K;
 }`);
         expect(res[1].name).toBe('B');
         expect(getCode(res[1])).toBe(`declare module './mockTypes' {
-interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;}
+interface InterfaceA {func:(...args: any[]) => void;foo:(a: number, c: InterfaceAny) => Promise<boolean>;bar()=>void;bar2?()=>void;t:InterfaceT<string>;}
 }
 declare class A<T,K> {
 v1?:T;
