@@ -9,6 +9,11 @@ describe('getCodeInFile', () => {
     it('interface in file', () => {
         const res = getCodeInFile(path.resolve(__dirname, '..', './mock/mockTypes.ts'), [8, 21]);
         expect(res?.targetMeta?.type).toBe(CodeType.TypeDefine);
-        expect(res?.targetMeta?.externalIdentifiers).toEqual(['InterfaceA', 'InterfaceAny']);
+        expect(res?.targetMeta?.externalIdentifiers).toEqual(['InterfaceA', 'InterfaceAny', 'InterfaceT']);
+    });
+    it('interface in file2', () => {
+        const res = getCodeInFile(path.resolve(__dirname, '..', './mock/mockTypes.ts'), [14, 21]);
+        expect(res?.targetMeta?.type).toBe(CodeType.TypeDefine);
+        expect(res?.targetMeta?.externalIdentifiers).toEqual(['InterfaceB', 'InterfaceA', 'InterfaceAny', 'InterfaceT']);
     });
 });

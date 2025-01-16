@@ -3,12 +3,16 @@ export interface InterfaceA {
     foo: (a: number, c: InterfaceAny) => Promise<boolean>;
     bar(): void;
     bar2?(): void;
+    t: InterfaceT<string>;
 }
 
 export interface InterfaceB {
     val: string;
     optionalVal?: number[];
     otherInterface: InterfaceA;
+}
+
+export interface InterfaceC extends InterfaceB {
 }
 
 export interface InterfaceAny {

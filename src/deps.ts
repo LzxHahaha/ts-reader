@@ -150,7 +150,7 @@ function searchTypeReference(node: TypeAliasDeclaration | InterfaceDeclaration, 
     });
     node.forEachDescendant((node, traversal) => {
         const kind = node.getKind();
-        if (kind !== SyntaxKind.TypeReference) {
+        if (kind !== SyntaxKind.TypeReference && kind !== SyntaxKind.ExpressionWithTypeArguments) {
             return;
         }
         const debugText = node.getText();
