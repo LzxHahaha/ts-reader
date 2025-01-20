@@ -307,11 +307,15 @@ function getCodeDetails(codeData: CodeMeta, importDeclarations: Record<string, D
 
     let localDeclares = '';
     const importDeclares: Record<string, Declare[]> = {};
-    for (const externalIdentifier of externalIdentifiers || []) {
+    for (const [externalIdentifier, declStr] of externalIdentifiers || new Map()) {
         const dep = importDeclarations[externalIdentifier] || localDeclarations[externalIdentifier];
         if (!dep) {
-            console.warn(`Cannot find declaration for '${externalIdentifier}' in '${name}'`);
-            localDeclares += `declare const ${externalIdentifier}: any;\n`;
+            if (declStr) {
+                localDeclares += declStr + '\n';
+            } else {
+                console.warn(`Cannot find declaration for '${externalIdentifier}' in '${name}'`);
+                localDeclares += `declare const ${externalIdentifier}: any;\n`;
+            }
             continue;
         }
         if (dep.module) {

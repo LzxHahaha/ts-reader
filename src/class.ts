@@ -22,7 +22,7 @@ export function extractClass(name: string, declaration: Node, options?: ExtractO
         name: name,
         body: `declare ${decalreString}`,
         classFunctions: structure.functions,
-        externalIdentifiers: options?.skipDependencies ? [] : searchExternalIdentifiers(declaration),
+        externalIdentifiers: options?.skipDependencies ? undefined : searchExternalIdentifiers(declaration),
         linesRange: [declaration.getStartLineNumber(), declaration.getEndLineNumber()]
     };
     return res;

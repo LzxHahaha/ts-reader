@@ -6,9 +6,9 @@ const SkipType = new Set([
     SyntaxKind.QualifiedName
 ]);
 
-export function searchExternalIdentifiers(declaration: Node | undefined, res = new Set<string>(), parentScopeVar = new Set<string>()): string[] {
+export function searchExternalIdentifiers(declaration: Node | undefined, res = new Map<string, string>(), parentScopeVar = new Set<string>()): Map<string, string> {
     if (!declaration) {
-        return [];
+        return new Map();
     }
     const scopeVariableNames = new Set<string>(parentScopeVar);
     const declarartionKind = declaration.getKind();
@@ -41,6 +41,20 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
         if (kind === SyntaxKind.TypeAliasDeclaration || kind === SyntaxKind.InterfaceDeclaration) {
             traversal.skip();
             searchTypeReference(node as TypeAliasDeclaration | InterfaceDeclaration, res);
+            return;
+        }
+
+        if (kind === SyntaxKind.TypeReference) {
+            traversal.skip();
+            const name = node.getType().getSymbol()?.getName();
+            if (!name || res.has(name) || scopeVariableNames.has(name) || isTsSymbol(name)) {
+                return;
+            }
+            const decl = (node as TypeReferenceNode).getType().getSymbol()?.getDeclarations();
+            if (decl?.[0] && isValidDeclaration(decl[0])) {
+                res.set(node.getText(), decl[0].getText(false));
+                searchExternalIdentifiers(decl[0], res);
+            }
             return;
         }
 
@@ -131,17 +145,17 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
                 if (!isValidDeclaration(decl)) {
                     continue;
                 }
-                res.add(checkName);
+                res.set(checkName, decl.getText(false));
                 searchExternalIdentifiers(decl, res);
             }
         }
 
-        res.add(checkName);
+        res.set(checkName, '');
     });
-    return Array.from(res);
+    return res;
 }
 
-function searchTypeReference(node: TypeAliasDeclaration | InterfaceDeclaration, res = new Set<string>()) {
+function searchTypeReference(node: TypeAliasDeclaration | InterfaceDeclaration, res = new Map<string, string>()): Map<string, string> {
     const name = node.getName();
     const scopeVariableNames = new Set<string>([name]);
     const typeParams = node.getTypeParameters();
@@ -150,23 +164,28 @@ function searchTypeReference(node: TypeAliasDeclaration | InterfaceDeclaration, 
     });
     node.forEachDescendant((node, traversal) => {
         const kind = node.getKind();
+        if (kind === SyntaxKind.TypeParameter) {
+            scopeVariableNames.add(node.asKind(SyntaxKind.TypeParameter)!.getName());
+            traversal.skip();
+            return;
+        }
         if (kind !== SyntaxKind.TypeReference && kind !== SyntaxKind.ExpressionWithTypeArguments) {
             return;
         }
         const debugText = node.getText();
         const typeName = node.getType().getSymbol()?.getName();
-        if (!typeName || scopeVariableNames.has(typeName) || isTsSymbol(typeName)) {
+        if (!typeName || res.has(typeName) || scopeVariableNames.has(typeName) || isTsSymbol(typeName)) {
             return;
         }
         const decl = (node as TypeReferenceNode).getType().getSymbol()?.getDeclarations();
         if (decl?.[0] && isValidDeclaration(decl[0])) {
             traversal.skip();
             const debugText = decl[0].getText();
-            res.add(typeName);
+            res.set(typeName, decl[0].getText(false));
             searchExternalIdentifiers(decl[0], res);
         }
     });
-    return Array.from(res);
+    return res;
 }
 
 function isValidDeclaration(node: Node): boolean {

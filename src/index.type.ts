@@ -28,7 +28,7 @@ export interface CodeMeta {
     type: CodeType;
     name: string;
     body: string;
-    externalIdentifiers: string[];
+    externalIdentifiers?: Map<string, string>;
     classFunctions?: ClassFunction[];
     linesRange: [number, number];
 }
@@ -63,6 +63,6 @@ export interface ClassFunction {
     isProp: boolean;
     isStatic: boolean;
     scope: string;
-    externalIdentifiers: string[];
+    externalIdentifiers?: Map<string, string>;
     linesRange: [number, number];
 };

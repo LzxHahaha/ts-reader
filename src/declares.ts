@@ -302,7 +302,7 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
             isProp: false,
             isStatic,
             scope,
-            externalIdentifiers: skipDependencies ? [] : searchExternalIdentifiers(method, undefined, memberNames),
+            externalIdentifiers: skipDependencies ? undefined : searchExternalIdentifiers(method, undefined, memberNames),
             linesRange: [method.getStartLineNumber(), method.getEndLineNumber()]
         };
     } else if (memberKind === SyntaxKind.PropertyDeclaration) {
@@ -321,7 +321,7 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
             isProp: true,
             isStatic,
             scope,
-            externalIdentifiers: skipDependencies ? [] : searchExternalIdentifiers(prop.getInitializer(), undefined, memberNames),
+            externalIdentifiers: skipDependencies ? undefined : searchExternalIdentifiers(prop.getInitializer(), undefined, memberNames),
             linesRange: [prop.getStartLineNumber(), prop.getEndLineNumber()]
         };
     }
