@@ -7,6 +7,8 @@ import { extractType } from "./type";
 
 export * from './index.type';
 
+export { RenderPropsExtractor } from './props';
+
 export async function read(fileName: string, options?: ProjectOptions): Promise<CodeDetailData[]> {
     const project = new Project(options);
 
