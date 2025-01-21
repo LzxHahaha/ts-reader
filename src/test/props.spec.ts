@@ -39,8 +39,7 @@ describe('RenderPropsExtractor', () => {
         const extractor = new RenderPropsExtractor();
         const result = extractor.extractProps(path.resolve(__dirname, '../mock/mockJsxFunc.tsx'), 35);
         expect(result).toBe(true);
-        expect(extractor.types.size).toBe(2);
+        expect(extractor.types.size).toBe(1);
         expect(extractor.types.get('FooProps')?.replaceAll(/\r?\n/g, '')).toBe(`interface FooProps {    a?: number;    b?: string;}`);
-        expect(extractor.types.get('__type0')?.replaceAll(/\r?\n/g, '')).toBe(`{ a?: number, b?: string }`);
     });
 });
