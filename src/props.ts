@@ -75,12 +75,9 @@ export class RenderPropsExtractor {
             return false;
         }
         const debugtext = classNode.getText();
-        let baseTypes = classNode.getBaseTypes();
-        if (!baseTypes.length) {
-            classNode.getHeritageClauses()
-                .map(clause => clause.getTypeNodes())
-                .map(types => types[0].getType());
-        }
+        const baseTypes = classNode.getHeritageClauses()
+            .map(clause => clause.getTypeNodes())
+            .map(types => types[0].getType());
         if (!baseTypes[0]) {
             return false;
         }
@@ -132,8 +129,9 @@ export class RenderPropsExtractor {
         let queue: Type[] = [];
         for (const declaration of declarations) {
             declarationTexts.push(declaration.getText());
+            const hierarchy = declaration.getDescendantsOfKind(SyntaxKind.ExpressionWithTypeArguments).map(el => el.getType());
             const dependencies = declaration.getDescendantsOfKind(SyntaxKind.TypeReference).map(node => node.getType());
-            queue = queue.concat(dependencies);
+            queue = queue.concat(hierarchy).concat(dependencies);
         }
         if (filePath && !filePath.includes('node_modules') && !filePath.includes('libs.')) {
             const text = declarationTexts.join('\n');

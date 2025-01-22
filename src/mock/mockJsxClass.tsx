@@ -15,6 +15,9 @@ type FooProps = FooPropsBase & {
     c?: boolean;
 }
 
+interface FooPropsExt extends FooProps {
+}
+
 export class FooA extends Component<FooProps> {
     render() {
         return (
@@ -26,6 +29,16 @@ export class FooA extends Component<FooProps> {
 }
 
 export class FooB extends Component<{ a?: number, b?: string }> {
+    render() {
+        return (
+            <div id="1">
+                <h1>MockJsxClass</h1>
+            </div>
+        );
+    }
+}
+
+class FooC extends Component<FooPropsExt> {
     render() {
         return (
             <div id="1">

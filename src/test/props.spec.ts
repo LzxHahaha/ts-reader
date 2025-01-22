@@ -4,7 +4,7 @@ import { RenderPropsExtractor } from '../props';
 describe('RenderPropsExtractor', () => {
     it('should extract props from class component', () => {
         const extractor = new RenderPropsExtractor();
-        const result = extractor.extractProps(path.resolve(__dirname, '../mock/mockJsxClass.tsx'), 18);
+        const result = extractor.extractProps(path.resolve(__dirname, '../mock/mockJsxClass.tsx'), 21);
         expect(result).toBe(true);
         expect(extractor.types.size).toBe(2);
         expect(extractor.types.get('FooProps')?.replaceAll(/\r?\n/g, '')).toBe(`type FooProps = FooPropsBase & {    c?: boolean;}`);
@@ -13,10 +13,17 @@ describe('RenderPropsExtractor', () => {
 
     it('should extract props from class component with type', () => {
         const extractor = new RenderPropsExtractor();
-        const result = extractor.extractProps(path.resolve(__dirname, '../mock/mockJsxClass.tsx'), 28);
+        const result = extractor.extractProps(path.resolve(__dirname, '../mock/mockJsxClass.tsx'), 31);
         expect(result).toBe(true);
-        expect(extractor.types.size).toBe(1);
+        expect(Array.from(extractor.types.keys()).join(',')).toBe("__type0");
         expect(extractor.types.get('__type0')?.replaceAll(/\r?\n/g, '')).toBe(`{ a?: number, b?: string }`);
+    });
+
+    it('should extract props from class component with extends', () => {
+        const extractor = new RenderPropsExtractor();
+        const result = extractor.extractProps(path.resolve(__dirname, '../mock/mockJsxClass.tsx'), 41);
+        expect(result).toBe(true);
+        expect(Array.from(extractor.types.keys()).join(',')).toEqual("FooPropsExt,FooProps,FooPropsBase");
     });
 
     it('should extract props from function component', () => {
