@@ -1,18 +1,39 @@
 import { ArrowFunction, ClassDeclaration, FunctionDeclaration, Project, ProjectOptions, SyntaxKind, Type } from "ts-morph";
 
+export interface RenderPropsExtractorOptions {
+    maxDepth?: number;
+}
+
 export class RenderPropsExtractor {
     #project: Project;
+    #anonymousCache = new Map<string, string>();
+    #visited = new Set<string>();
     #types = new Map<string, string>();
+    #depthCache = new Map<string, number>();
     #componentType?: 'class' | 'function';
     #sourceCode = '';
-    #anonymousTypeCount = 0;
 
-    constructor(options?: ProjectOptions) {
-        this.#project = new Project(options);
+    #maxDepth = 4;
+
+    constructor(projectOptions?: ProjectOptions, extractOptions?: RenderPropsExtractorOptions) {
+        this.#project = new Project(projectOptions);
+        if (extractOptions?.maxDepth) {
+            this.#maxDepth = extractOptions.maxDepth;
+        }
     }
 
     get types() {
         return this.#types;
+    }
+
+    get typeDefines() {
+        const arr = Array.from(this.#types.entries());
+        arr.sort((a, b) => {
+            const depthA = this.#depthCache.get(a[0]) || 0;
+            const depthB = this.#depthCache.get(b[0]) || 0;
+            return depthA - depthB;
+        });
+        return arr.map(([, value]) => value);
     }
 
     get componentType() {
@@ -100,7 +121,10 @@ export class RenderPropsExtractor {
         return this.#types.size > 0;
     }
 
-    #getPropsType(type: Type) {
+    #getPropsType(type: Type, depth = 0) {
+        if (depth >= this.#maxDepth) {
+            return;
+        }
         const symbol = type.getAliasSymbol() || type.getSymbol();
         if (!symbol) {
             if (type.isIntersection()) {
@@ -108,18 +132,26 @@ export class RenderPropsExtractor {
                     if (t.isAnonymous()) {
                         return;
                     }
-                    this.#getPropsType(t);
+                    this.#getPropsType(t, depth + 1);
                 });
             }
             return;
         }
         let symbolName = symbol.getName();
         if (!symbolName || symbolName === '__type') {
-            symbolName = `__type${this.#anonymousTypeCount++}`;
+            const text = type.getText();
+            const key = this.#anonymousCache.get(text);
+            if (key) {
+                symbolName = key;
+            } else {
+                symbolName = `__type${this.#anonymousCache.size}`;
+                this.#anonymousCache.set(text, symbolName);
+            }
         }
-        if (this.#types.has(symbolName)) {
+        if (this.#types.has(symbolName) || this.#visited.has(symbolName)) {
             return;
         }
+        this.#visited.add(symbolName);
         let declarationTexts: string[] = [];
         const declarations = symbol.getDeclarations();
         if (!declarations) {
@@ -136,10 +168,13 @@ export class RenderPropsExtractor {
         if (filePath && !filePath.includes('node_modules') && !filePath.includes('libs.')) {
             const text = declarationTexts.join('\n');
             // skip Template Parameters
-            text !== symbolName && this.#types.set(symbolName, text);
+            if (text !== symbolName) {
+                this.#types.set(symbolName, text);
+                this.#depthCache.set(symbolName, depth);
+            }
         }
         for (const type of queue) {
-            this.#getPropsType(type);
+            this.#getPropsType(type, depth + 1);
         }
     }
 }
