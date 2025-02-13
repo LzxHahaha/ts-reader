@@ -6,18 +6,31 @@ const SkipType = new Set([
     SyntaxKind.QualifiedName
 ]);
 
-export function searchExternalIdentifiers(declaration: Node | undefined, res = new Map<string, string>(), parentScopeVar = new Set<string>()): Map<string, string> {
+interface SearchOptions {
+    deepTypesCheck?: boolean;
+}
+
+export function searchExternalIdentifiers(declaration: Node | undefined, options?: SearchOptions, parentScopeVar = new Set<string>()): Map<string, string> {
+    const opts: SearchOptions = {
+        deepTypesCheck: true,
+        ...options
+    };
+    return search(declaration, opts, new Map(), parentScopeVar);
+}
+
+function search(declaration: Node | undefined, options?: SearchOptions, res = new Map<string, string>(), parentScopeVar = new Set<string>()): Map<string, string> {
     if (!declaration) {
         return new Map();
     }
     const scopeVariableNames = new Set<string>(parentScopeVar);
     const declarartionKind = declaration.getKind();
-    if (declarartionKind === SyntaxKind.TypeAliasDeclaration || declarartionKind === SyntaxKind.InterfaceDeclaration) {
-        return searchTypeReference(declaration as TypeAliasDeclaration | InterfaceDeclaration, res);
-    }
+    const isTypeDefine = declarartionKind === SyntaxKind.TypeAliasDeclaration || declarartionKind === SyntaxKind.InterfaceDeclaration;
 
     // add current function name
-    if (declarartionKind === SyntaxKind.FunctionDeclaration) {
+    if (declarartionKind === SyntaxKind.FunctionDeclaration || isTypeDefine) {
+        if (isTypeDefine && options?.deepTypesCheck) {
+            return searchTypeReference(declaration as TypeAliasDeclaration | InterfaceDeclaration, options, res);
+        }
         const name = (declaration as FunctionDeclaration | InterfaceDeclaration | TypeAliasDeclaration).getName();
         name && scopeVariableNames.add(name);
     }
@@ -40,7 +53,7 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
 
         if (kind === SyntaxKind.TypeAliasDeclaration || kind === SyntaxKind.InterfaceDeclaration) {
             traversal.skip();
-            searchTypeReference(node as TypeAliasDeclaration | InterfaceDeclaration, res);
+            options?.deepTypesCheck && searchTypeReference(node as TypeAliasDeclaration | InterfaceDeclaration, options, res);
             return;
         }
 
@@ -53,7 +66,7 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
             const decl = (node as TypeReferenceNode).getType().getSymbol()?.getDeclarations();
             if (decl?.[0] && isValidDeclaration(decl[0])) {
                 res.set(node.getText(), decl[0].getText(false));
-                searchExternalIdentifiers(decl[0], res);
+                search(decl[0], options, res);
             }
             return;
         }
@@ -84,7 +97,7 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
         // create a new scope, use recursion to scan
         if (kind === SyntaxKind.Block) {
             traversal.skip();
-            searchExternalIdentifiers(node, res, scopeVariableNames);
+            search(node, options, res, scopeVariableNames);
             return;
         }
 
@@ -114,14 +127,14 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
         if (kind === SyntaxKind.JsxAttribute) {
             checkName = (node as JsxAttribute).getNameNode().getText();
             traversal.skip();
-            searchExternalIdentifiers(node, res, new Set([...scopeVariableNames, checkName]));
+            search(node, options, res, new Set([...scopeVariableNames, checkName]));
             return;
         }
 
         let needDeepCheck = false;
         if (kind === SyntaxKind.Identifier) {
             const parentKind = node.getParent()?.getKind();
-            if ( parentKind === SyntaxKind.JsxClosingElement) {
+            if (parentKind === SyntaxKind.JsxClosingElement) {
                 return;
             }
             if ((parentKind === SyntaxKind.JsxOpeningElement || parentKind === SyntaxKind.JsxSelfClosingElement) && !/A-Z/.test(checkName[0])) {
@@ -146,7 +159,7 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
                     continue;
                 }
                 res.set(checkName, decl.getText(false));
-                searchExternalIdentifiers(decl, res);
+                search(decl, options, res);
             }
         }
 
@@ -155,7 +168,7 @@ export function searchExternalIdentifiers(declaration: Node | undefined, res = n
     return res;
 }
 
-function searchTypeReference(node: TypeAliasDeclaration | InterfaceDeclaration, res = new Map<string, string>()): Map<string, string> {
+function searchTypeReference(node: TypeAliasDeclaration | InterfaceDeclaration, options?: SearchOptions, res = new Map<string, string>()): Map<string, string> {
     const name = node.getName();
     const scopeVariableNames = new Set<string>([name]);
     const typeParams = node.getTypeParameters();
@@ -182,7 +195,7 @@ function searchTypeReference(node: TypeAliasDeclaration | InterfaceDeclaration, 
             traversal.skip();
             const debugText = decl[0].getText();
             res.set(typeName, decl[0].getText(false));
-            searchExternalIdentifiers(decl[0], res);
+            search(decl[0], options, res);
         }
     });
     return res;

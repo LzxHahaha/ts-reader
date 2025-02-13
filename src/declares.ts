@@ -1,5 +1,5 @@
 import { SyntaxKind, TypeAliasDeclaration, InterfaceDeclaration, EnumDeclaration, VariableDeclarationList, VariableDeclaration, FunctionDeclaration, Node, EnumMember, ClassDeclaration, ImportDeclaration, SourceFile, MethodDeclaration, GetAccessorDeclaration, SetAccessorDeclaration, PropertyDeclaration, ClassMemberTypes } from "ts-morph";
-import { ClassFunction, ClassStructure, DependData } from "./index.type";
+import { ClassFunction, ClassStructure, DependData, ExtractOptions } from "./index.type";
 import { getClassMemberNames, searchExternalIdentifiers } from "./deps";
 
 export function getImportDeclarations(imports: ImportDeclaration[]): Record<string, DependData> {
@@ -72,7 +72,7 @@ export function getDeclareString(declaration?: Node, name?: string): string | un
         case SyntaxKind.SetAccessor:
             return getGetterSetterDeclaration(declaration as GetAccessorDeclaration);
         case SyntaxKind.ClassDeclaration:
-            return getClassDeclaration(getClassStructure(declaration as ClassDeclaration));
+            return getClassDeclaration(getClassStructure(declaration as ClassDeclaration, { scanFunc: false, deepTypesCheck: false }));
         case SyntaxKind.MethodSignature:
         case SyntaxKind.ModuleDeclaration:
             return declaration.getText();
@@ -218,10 +218,7 @@ function getPropDeclaretion(prop: PropertyDeclaration) {
     return `${prop.getName()}${marker}:${formatType(prop.getType().getText())};`;
 }
 
-export function getClassStructure(classDeclaration: ClassDeclaration, options?: {
-    scanFunc?: boolean;
-    skipDependencies?: boolean;
-}): ClassStructure | undefined {
+export function getClassStructure(classDeclaration: ClassDeclaration, options?: ExtractOptions): ClassStructure | undefined {
     const className = classDeclaration.getName() || '';
 
     const functions: ClassFunction[] = [];
@@ -260,7 +257,7 @@ export function getClassStructure(classDeclaration: ClassDeclaration, options?: 
         if (memberKind === SyntaxKind.Constructor || memberKind === SyntaxKind.ClassStaticBlockDeclaration) {
             continue;
         }
-        const funcData = options?.scanFunc && getClassMemberFunction(member, memberNames, options?.skipDependencies);
+        const funcData = options?.scanFunc && getClassMemberFunction(member, memberNames, options);
         if (funcData) {
             functions.push(funcData);
         }
@@ -285,7 +282,7 @@ export function getClassStructure(classDeclaration: ClassDeclaration, options?: 
     }
 }
 
-function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<string>, skipDependencies?: boolean): ClassFunction | undefined {
+function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<string>, options?: ExtractOptions): ClassFunction | undefined {
     const memberKind = member.getKind();
     if (memberKind !== SyntaxKind.MethodDeclaration && memberKind !== SyntaxKind.PropertyDeclaration) {
         return;
@@ -302,7 +299,7 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
             isProp: false,
             isStatic,
             scope,
-            externalIdentifiers: skipDependencies ? undefined : searchExternalIdentifiers(method, undefined, memberNames),
+            externalIdentifiers: options?.skipDependencies ? undefined : searchExternalIdentifiers(method, options, memberNames),
             linesRange: [method.getStartLineNumber(), method.getEndLineNumber()]
         };
     } else if (memberKind === SyntaxKind.PropertyDeclaration) {
@@ -321,7 +318,7 @@ function getClassMemberFunction(member: ClassMemberTypes, memberNames: Set<strin
             isProp: true,
             isStatic,
             scope,
-            externalIdentifiers: skipDependencies ? undefined : searchExternalIdentifiers(prop.getInitializer(), undefined, memberNames),
+            externalIdentifiers: options?.skipDependencies ? undefined : searchExternalIdentifiers(prop.getInitializer(), options, memberNames),
             linesRange: [prop.getStartLineNumber(), prop.getEndLineNumber()]
         };
     }

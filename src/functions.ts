@@ -23,12 +23,12 @@ export function extractFunction(name: string, declaration: Node, options?: Extra
             type: CodeType.Function,
             name,
             body: body.replaceAll(';;', ';'),
-            externalIdentifiers: options?.skipDependencies ? undefined : searchExternalIdentifiers(initializer),
+            externalIdentifiers: options?.skipDependencies ? undefined : searchExternalIdentifiers(initializer, options),
             linesRange: [declaration.getStartLineNumber(), declaration.getEndLineNumber()]
         }
     }
     if (kind === SyntaxKind.FunctionDeclaration || kind === SyntaxKind.ArrowFunction) {
-        const externalIdentifiers = options?.skipDependencies ? undefined : searchExternalIdentifiers(declaration as FunctionDeclaration);
+        const externalIdentifiers = options?.skipDependencies ? undefined : searchExternalIdentifiers(declaration as FunctionDeclaration, options);
         let body = declaration.getFullText();
         if (kind === SyntaxKind.ArrowFunction && name === 'default' && !body.startsWith('export default ')) {
             body = `export default ${body}`;

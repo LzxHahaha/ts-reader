@@ -10,8 +10,8 @@ export function extractClass(name: string, declaration: Node, options?: ExtractO
     }
     const classDeclaration = declaration as ClassDeclaration
     const structure = getClassStructure(classDeclaration, {
+        ...options,
         scanFunc: true,
-        skipDependencies: options?.skipDependencies
     });
     if (!structure) {
         return;
@@ -22,7 +22,7 @@ export function extractClass(name: string, declaration: Node, options?: ExtractO
         name: name,
         body: `declare ${decalreString}`,
         classFunctions: structure.functions,
-        externalIdentifiers: options?.skipDependencies ? undefined : searchExternalIdentifiers(declaration),
+        externalIdentifiers: options?.skipDependencies ? undefined : searchExternalIdentifiers(declaration, options),
         linesRange: [declaration.getStartLineNumber(), declaration.getEndLineNumber()]
     };
     return res;

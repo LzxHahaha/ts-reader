@@ -12,7 +12,7 @@ export function extractType(name: string, declaration: Node, options?: ExtractOp
         type: CodeType.TypeDefine,
         name,
         body: declaration.getFullText().trim(),
-        externalIdentifiers: options?.skipDependencies ? undefined : searchExternalIdentifiers(declaration),
+        externalIdentifiers: options?.skipDependencies ? undefined : searchExternalIdentifiers(declaration, options),
         linesRange: [declaration.getStartLineNumber(), declaration.getEndLineNumber()]
     };
 }

@@ -6,6 +6,8 @@ export interface DependData {
 
 export interface ExtractOptions {
     skipDependencies?: boolean;
+    deepTypesCheck?: boolean;
+    scanFunc?: boolean;
 }
 
 export enum CodeType {
