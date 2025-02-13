@@ -1,5 +1,5 @@
 import { Project, ProjectOptions, SourceFile, SyntaxKind, Node, Type } from "ts-morph";
-import { CodeMeta, CodeDetailData, Declare, DependData, CodeType, CodeBaseInfo } from "./index.type";
+import { CodeMeta, CodeDetailData, Declare, DependData, CodeType, CodeBaseInfo, ExtractOptions } from "./index.type";
 import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
 import { extractClass } from "./class";
@@ -9,8 +9,8 @@ export * from './index.type';
 
 export { RenderPropsExtractor } from './props';
 
-export async function read(fileName: string, options?: ProjectOptions): Promise<CodeDetailData[]> {
-    const project = new Project(options);
+export async function read(fileName: string, extractOptions?: ExtractOptions, projectOptions?: ProjectOptions): Promise<CodeDetailData[]> {
+    const project = new Project(projectOptions);
 
     const formatFileName = formatPath(fileName);
     const sourceFile = project.addSourceFileAtPath(formatFileName);
@@ -23,7 +23,7 @@ export async function read(fileName: string, options?: ProjectOptions): Promise<
             if (sourcePath !== formatFileName) {
                 return;
             }
-            const data = extractFunction(name, declaration) || extractClass(name, declaration);
+            const data = extractFunction(name, declaration, extractOptions) || extractClass(name, declaration, extractOptions);
             if (data) {
                 exportData[name] = data;
             }
