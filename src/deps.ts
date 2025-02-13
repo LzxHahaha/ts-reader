@@ -57,7 +57,7 @@ function search(declaration: Node | undefined, options?: SearchOptions, res = ne
             return;
         }
 
-        if (kind === SyntaxKind.TypeReference) {
+        if (kind === SyntaxKind.TypeReference && options?.deepTypesCheck) {
             traversal.skip();
             const name = node.getType().getSymbol()?.getName();
             if (!name || res.has(name) || scopeVariableNames.has(name) || isTsSymbol(name)) {
