@@ -1,3 +1,5 @@
+import type { Project } from "ts-morph";
+
 export interface DependData {
     // declare string
     text: string;
@@ -8,6 +10,7 @@ export interface ExtractOptions {
     skipDependencies?: boolean;
     deepTypesCheck?: boolean;
     scanFunc?: boolean;
+    cachedProject?: Project;
 }
 
 export enum CodeType {

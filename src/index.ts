@@ -1,16 +1,15 @@
-import { Project, ProjectOptions, SourceFile, SyntaxKind, Node, Type } from "ts-morph";
-import { CodeMeta, CodeDetailData, Declare, DependData, CodeType, CodeBaseInfo, ExtractOptions } from "./index.type";
+import { Project, ProjectOptions, SourceFile } from "ts-morph";
+import { CodeMeta, CodeDetailData, Declare, DependData, ExtractOptions } from "./index.type";
 import { getImportDeclarations, getLocalDeclarations } from "./declares";
 import { extractFunction } from "./functions";
 import { extractClass } from "./class";
-import { extractType } from "./type";
 
 export * from './index.type';
 
 export { RenderPropsExtractor } from './props';
 
 export async function read(fileName: string, extractOptions?: ExtractOptions, projectOptions?: ProjectOptions): Promise<CodeDetailData[]> {
-    const project = new Project(projectOptions);
+    const project = extractOptions?.cachedProject || new Project(projectOptions);
 
     const formatFileName = formatPath(fileName);
     const sourceFile = project.addSourceFileAtPath(formatFileName);
@@ -39,124 +38,6 @@ export async function read(fileName: string, extractOptions?: ExtractOptions, pr
     return res;
 }
 
-export async function getDeclartionList(fileName: string, options?: {
-    exportedOnly?: boolean;
-} & ProjectOptions): Promise<CodeBaseInfo[]> {
-    const project = new Project({
-        skipAddingFilesFromTsConfig: true,
-        skipFileDependencyResolution: true,
-        skipLoadingLibFiles: true,
-        ...options
-    });
-
-    const formatFileName = formatPath(fileName);
-    const sourceFile = project.addSourceFileAtPath(formatFileName);
-
-    const result: CodeBaseInfo[] = [];
-
-    const functions = sourceFile.getFunctions();
-    functions.forEach((func) => {
-        if (options?.exportedOnly && !func.isExported()) {
-            return;
-        }
-        result.push({
-            type: CodeType.Function,
-            name: func.getName() || "default",
-            linesRange: [func.getStartLineNumber(), func.getEndLineNumber()]
-        });
-    });
-
-    const classes = sourceFile.getClasses();
-    classes.forEach((cls) => {
-        if (options?.exportedOnly && !cls.isExported()) {
-            return;
-        }
-        result.push({
-            type: CodeType.Class,
-            name: cls.getName() || "default",
-            linesRange: [cls.getStartLineNumber(), cls.getEndLineNumber()],
-            functions: cls.getMethods().map(el => ({ name: el.getName(), linesRange: [el.getStartLineNumber(), el.getEndLineNumber()] }))
-        });
-    });
-
-    const interfaces = sourceFile.getInterfaces();
-    interfaces.forEach((inter) => {
-        if (options?.exportedOnly && !inter.isExported()) {
-            return;
-        }
-        result.push({
-            type: CodeType.TypeDefine,
-            name: inter.getName() || "default",
-            linesRange: [inter.getStartLineNumber(), inter.getEndLineNumber()]
-        });
-    });
-
-    const types = sourceFile.getTypeAliases();
-    types.forEach((type) => {
-        if (options?.exportedOnly && !type.isExported()) {
-            return;
-        }
-        result.push({
-            type: CodeType.TypeDefine,
-            name: type.getName() || "default",
-            linesRange: [type.getStartLineNumber(), type.getEndLineNumber()]
-        });
-    });
-
-    const enums = sourceFile.getEnums();
-    enums.forEach((en) => {
-        if (options?.exportedOnly && !en.isExported()) {
-            return;
-        }
-        result.push({
-            type: CodeType.Enum,
-            name: en.getName() || "default",
-            linesRange: [en.getStartLineNumber(), en.getEndLineNumber()]
-        });
-    });
-
-    const vars = sourceFile.getVariableDeclarations();
-    vars.forEach((v) => {
-        if (options?.exportedOnly && !v.isExported()) {
-            return;
-        }
-        const type = checkVarType(v.getType());
-        type != null && result.push({
-            type,
-            name: v.getName() || "default",
-            linesRange: [v.getStartLineNumber(), v.getEndLineNumber()]
-        });
-    });
-
-    const defaultExport = sourceFile.getExportedDeclarations().get("default")?.[0];
-    if (defaultExport) {
-        const type = checkVarType(defaultExport.getType());
-        type != null && result.push({
-            type,
-            name:  "default",
-            linesRange: [defaultExport.getStartLineNumber(), defaultExport.getEndLineNumber()]
-        });
-    }
-
-    return result;
-}
-
-function checkVarType(type?: Type<any>): CodeType | undefined {
-    if (!type) {
-        return;
-    }
-    if (type.getConstructSignatures().length > 0) {
-        return CodeType.Class;
-    } else if (type.getCallSignatures().length > 0) {
-        return CodeType.Function;
-    } else if (type.isInterface()) {
-        return CodeType.TypeDefine;
-    }
-    if (type.getAliasSymbol()) {
-        return CodeType.TypeDefine;
-    }
-}
-
 export interface MergeCodeOptions {
     beforeImports?: string;
     afterImports?: string;
@@ -164,6 +45,7 @@ export interface MergeCodeOptions {
     afterLocal?: string;
     beforeCode?: string;
     afterCode?: string;
+    maxLength?: number;
 }
 
 export function getCode(data: CodeDetailData, options: MergeCodeOptions = {}): string {
@@ -174,7 +56,8 @@ export function getCode(data: CodeDetailData, options: MergeCodeOptions = {}): s
         beforeLocal = '',
         afterLocal = '',
         beforeCode = '',
-        afterCode = ''
+        afterCode = '',
+        maxLength
     } = options;
 
     const importDeclare = importDeclares ? Object.entries(importDeclares).map(([module, declares]) => {
@@ -185,112 +68,24 @@ export function getCode(data: CodeDetailData, options: MergeCodeOptions = {}): s
     const localStatements = localDeclares ? `${beforeLocal}${localDeclares}${afterLocal}` : '';
     const codeStatements = `${beforeCode}${code}${afterCode}`;
 
-    return `${importStatements}${localStatements}${codeStatements}`;
+    if (!maxLength) {
+        return `${importStatements}${localStatements}${codeStatements}`;
+    }
+
+    let attachStr = '';
+    const attachments = [importStatements, localStatements];
+    const attachLimit = Math.max(0, maxLength - codeStatements.length);
+    for (const attach of attachments) {
+        if (attach.length + attachStr.length > attachLimit) {
+            break;
+        }
+        attachStr += attach;
+    }
+    return `${attachStr}${codeStatements}`;
 }
 
 function formatPath(path: string) {
     return path.replace(/\\/g, '/');
-}
-
-type FilePosition = [line: number, col: number];
-
-export function getCodeInFile(filePath: string, position: FilePosition, options?: ProjectOptions): { details: CodeDetailData, targetMeta: CodeMeta } | undefined {
-    const project = new Project({
-        ...options,
-    });
-    const formatFileName = formatPath(filePath);
-    const sourceFile = project.addSourceFileAtPath(formatFileName);
-    return getCodeInSourceFile(sourceFile, position);
-}
-
-function getCodeInSourceFile(sourceFile: SourceFile, position: FilePosition): { details: CodeDetailData, targetMeta: CodeMeta } | undefined {
-    const code = sourceFile.getText();
-    const lines = code.split('\n');
-    // transform 1-based to 0-based
-    const line = Math.max(0, Math.min(lines.length - 1, position[0] - 1));
-    const col = Math.max(0, Math.min(lines[line].length - 1, position[1] - 1));
-    let pos = 0;
-    for (let i = 0; i < lines.length && i < line; i++) {
-        pos += lines[i].length + 1;
-    }
-    pos += col;
-
-    const node = sourceFile.getDescendantAtPos(pos);
-    if (!node) {
-        return undefined;
-    }
-
-    const type = getTypeByNode(sourceFile, node);
-    if (type) {
-        return type;
-    }
-    return getFunctionByNode(sourceFile, node, position);
-}
-
-function getTypeByNode(sourceFile: SourceFile, node: Node): { details: CodeDetailData, targetMeta: CodeMeta } | undefined {
-    const typeNode = node.getFirstAncestorByKind(SyntaxKind.TypeAliasDeclaration)
-        || node.getFirstAncestorByKind(SyntaxKind.InterfaceDeclaration);
-    if (!typeNode) {
-        return undefined;
-    }
-    const { importDeclarations, localDeclarations } = getFileDeclarations(sourceFile);
-    const targetMeta = extractType(typeNode.getName(), typeNode);
-    if (!targetMeta) {
-        return undefined;
-    }
-    return {
-        details: getCodeDetails(targetMeta, importDeclarations, localDeclarations),
-        targetMeta
-    }
-}
-
-function getFunctionByNode(sourceFile: SourceFile, node: Node, position: FilePosition): { details: CodeDetailData, targetMeta: CodeMeta } | undefined {
-    const functionNode = node.getFirstAncestorByKind(SyntaxKind.FunctionDeclaration)
-        || node.getFirstAncestorByKind(SyntaxKind.FunctionExpression)
-        || node.getFirstAncestorByKind(SyntaxKind.ArrowFunction)
-        || node.getFirstAncestorByKind(SyntaxKind.MethodDeclaration);
-
-    if (!functionNode) {
-        return undefined;
-    }
-
-    const classNode = node.getFirstAncestorByKind(SyntaxKind.ClassDeclaration);
-
-    let detailsMeta: CodeMeta | undefined;
-    let targetMeta: CodeMeta | undefined;
-    if (classNode) {
-        detailsMeta = extractClass(classNode.getName() || "", classNode);
-        const member = detailsMeta?.classFunctions?.find(el => el.linesRange[0] <= position[0] && position[0] <= el.linesRange[1]);
-        if (!member) {
-            return undefined;
-        }
-        targetMeta = {
-            ...member,
-            type: CodeType.ClassMember
-        }
-    } else {
-        let name = '';
-        if (functionNode.getKind() === SyntaxKind.ArrowFunction) {
-            const parent = functionNode.getParent();
-            if (parent.getKind() === SyntaxKind.VariableDeclaration) {
-                name = parent.asKind(SyntaxKind.VariableDeclaration)!.getName();
-            }
-        } else {
-            name = (functionNode as any).getName?.() || "";
-        }
-        detailsMeta = extractFunction(name, functionNode);
-        targetMeta = detailsMeta;
-    }
-
-    if (!detailsMeta || !targetMeta) {
-        return undefined;
-    }
-
-    const { importDeclarations, localDeclarations } = getFileDeclarations(sourceFile);
-    return {
-        details: getCodeDetails(detailsMeta, importDeclarations, localDeclarations),
-        targetMeta
-    };
 }
 
 function getFileDeclarations(sourceFile: SourceFile) {

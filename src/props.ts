@@ -2,6 +2,8 @@ import { ArrowFunction, ClassDeclaration, FunctionDeclaration, Project, ProjectO
 
 export interface RenderPropsExtractorOptions {
     maxDepth?: number;
+    projectOptions?: ProjectOptions;
+    cachedProject?: Project;
 }
 
 export class RenderPropsExtractor {
@@ -15,10 +17,10 @@ export class RenderPropsExtractor {
 
     #maxDepth = 4;
 
-    constructor(projectOptions?: ProjectOptions, extractOptions?: RenderPropsExtractorOptions) {
-        this.#project = new Project(projectOptions);
-        if (extractOptions?.maxDepth) {
-            this.#maxDepth = extractOptions.maxDepth;
+    constructor(options?: RenderPropsExtractorOptions, ) {
+        this.#project = options?.cachedProject || new Project(options?.projectOptions);
+        if (options?.maxDepth) {
+            this.#maxDepth = options.maxDepth;
         }
     }
 
