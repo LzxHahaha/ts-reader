@@ -17,7 +17,7 @@ export class RenderPropsExtractor {
 
     #maxDepth = 4;
 
-    constructor(options?: RenderPropsExtractorOptions, ) {
+    constructor(options?: RenderPropsExtractorOptions,) {
         this.#project = options?.cachedProject || new Project(options?.projectOptions);
         if (options?.maxDepth) {
             this.#maxDepth = options.maxDepth;
@@ -47,7 +47,12 @@ export class RenderPropsExtractor {
     }
 
     extractProps(filePath: string, line: number, col = 0): boolean {
-        const sourceFile = this.#project.addSourceFileAtPath(filePath);
+        let sourceFile = this.#project.getSourceFile(filePath);
+        if (!sourceFile) {
+            sourceFile = this.#project.addSourceFileAtPath(filePath);
+        } else {
+            sourceFile.refreshFromFileSystemSync();
+        }
         const text = sourceFile.getFullText();
         let pos = col;
         const lines = text.split("\n");

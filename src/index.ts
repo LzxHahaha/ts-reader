@@ -9,10 +9,15 @@ export * from './index.type';
 export { RenderPropsExtractor } from './props';
 
 export async function read(fileName: string, extractOptions?: ExtractOptions, projectOptions?: ProjectOptions): Promise<CodeDetailData[]> {
-    const project = extractOptions?.cachedProject || new Project(projectOptions);
-
     const formatFileName = formatPath(fileName);
-    const sourceFile = project.addSourceFileAtPath(formatFileName);
+
+    const project = extractOptions?.cachedProject || new Project(projectOptions);
+    let sourceFile = project.getSourceFile(formatFileName);
+    if (!sourceFile) {
+        sourceFile = project.addSourceFileAtPath(formatFileName);
+    } else if (extractOptions?.cachedProject) {
+        sourceFile.refreshFromFileSystemSync();
+    }
 
     const exportedDeclarations = sourceFile.getExportedDeclarations();
     const exportData: Record<string, CodeMeta> = {};
